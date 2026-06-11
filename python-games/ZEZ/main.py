@@ -3,6 +3,24 @@ from modules.scene import startMenu, gameRun, gameOver
 from modules.interface.loadres import load_resources
 from consts import SCREEN_WIDTH, SCREEN_HEIGHT
 
+_HIGHSCORE_PATH = 'highscore.txt'
+
+
+def _load_high_score():
+    try:
+        with open(_HIGHSCORE_PATH) as f:
+            return int(f.read().strip())
+    except Exception:
+        return 0
+
+
+def _save_high_score(score):
+    try:
+        with open(_HIGHSCORE_PATH, 'w') as f:
+            f.write(str(score))
+    except Exception:
+        pass
+
 
 def main():
     pygame.init()
@@ -10,20 +28,29 @@ def main():
     pygame.display.set_caption("ZEZ")
     clock = pygame.time.Clock()
 
-    resources = load_resources()
+    resources  = load_resources()
+    high_score = _load_high_score()
 
     startMenu.run(screen, clock, resources)
 
-    pygame.mixer.music.load(resources['background_music'])
-    pygame.mixer.music.play(-1)
+    try:
+        pygame.mixer.music.load(resources['background_music'])
+        pygame.mixer.music.play(-1)
+    except Exception as e:
+        print(f"[BGM] skipped background music: {e}")
 
-    running = True
-    while running:
-        game_result = gameRun.run(screen, clock, resources)
+    playing = True
+    while playing:
+        game_result = gameRun.run(screen, clock, resources, high_score)
+        high_score  = max(high_score, game_result['score'])
+        _save_high_score(high_score)
 
-        running = gameOver.run(screen, clock, resources, game_result)
+        playing = gameOver.run(screen, clock, resources, game_result, high_score)
 
-    pygame.mixer.music.stop()
+    try:
+        pygame.mixer.music.stop()
+    except Exception:
+        pass
     pygame.quit()
 
 
