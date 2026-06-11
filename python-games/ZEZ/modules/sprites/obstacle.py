@@ -1,34 +1,32 @@
 import pygame
-from consts import *
+from consts import OBSTACLE_BASE_SPEED, ANIM_INTERVAL, HITBOX_INSET_X, HITBOX_INSET_Y
 
 
 class Obstacle(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, obstacle_type, images):
+    def __init__(self, x, y, obstacle_type, images, speed=OBSTACLE_BASE_SPEED):
         super().__init__()
-        self.images = images
-        self.image = self.images[0]
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.obstacle_type = obstacle_type
+        self.images     = images
+        self.anim_frame = 0
+        self.anim_tick  = 0
+        self.image      = self.images[0]
+        self.rect       = self.image.get_rect(x=x, y=y)
+        self.speed      = speed
 
-        if obstacle_type == "ground":
-            self.rect.y = SCREEN_HEIGHT - height - 20
-        elif obstacle_type == "sky":
-            self.rect.y = y
-
-        self.animation_index = 0
-        self.animation_speed = 0.1
+    def hit_rect(self):
+        """Shrunk rect for more forgiving collision."""
+        return self.rect.inflate(-HITBOX_INSET_X * 2, -HITBOX_INSET_Y * 2)
 
     def update(self):
-        self.rect.x -= 5
-        if self.rect.x < 0:
+        self.rect.x -= self.speed
+
+        # safety net: destroy if fully scrolled off the left
+        if self.rect.right < 0:
             self.kill()
+            return
 
-        # Update animation
-        self.animation_index += self.animation_speed
-        if self.animation_index >= len(self.images):
-            self.animation_index = 0
-        self.image = self.images[int(self.animation_index)]
-
-    def draw(self, screen):
-        screen.blit(self.image, self.rect)
+        # advance animation frame
+        self.anim_tick += 1
+        if self.anim_tick >= ANIM_INTERVAL:
+            self.anim_tick  = 0
+            self.anim_frame = (self.anim_frame + 1) % len(self.images)
+            self.image      = self.images[self.anim_frame]
