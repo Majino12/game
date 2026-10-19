@@ -1,0 +1,16 @@
+ZEZ Sky Dash asset provenance
+
+Pack: Kenney — New Platformer Pack 1.1
+Author: Kenney (https://kenney.nl)
+Official asset page: https://kenney.nl/assets/new-platformer-pack
+Official download: https://kenney.nl/media/pages/assets/new-platformer-pack/1896103897-1764756702/kenney_new-platformer-pack-1.1.zip
+License: Creative Commons Zero (CC0 1.0 Universal)
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+Official permission FAQ: https://kenney.nl/support
+Downloaded: 2026-10-16
+
+These unmodified PNG and OGG files were selected from the official pack.
+The pack's original license is included as KENNEY_LICENSE.txt.
+Per-file source paths, dimensions and SHA-256 checksums are recorded in manifest.json.
+
+No Tencent / Tiantian Cool Run artwork, sounds, trademarks or source code are included.

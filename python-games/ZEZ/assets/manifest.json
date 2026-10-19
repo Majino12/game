@@ -1,0 +1,819 @@
+{
+  "source": "Kenney New Platformer Pack",
+  "version": "1.1",
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "homepage": "https://kenney.nl/assets/new-platformer-pack",
+  "download_url": "https://kenney.nl/media/pages/assets/new-platformer-pack/1896103897-1764756702/kenney_new-platformer-pack-1.1.zip",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "permission_support_url": "https://kenney.nl/support",
+  "retrieved_on": "2026-10-16",
+  "archive_sha256": "553b907f3f0e505ab65f56f245ccaff3123c8fe3f3a0dfce9373b996bfc18cc2",
+  "notes": "Unmodified selected high-resolution (Double) PNGs and original OGG audio. CC0 permits redistribution and use in personal, educational and commercial projects. This manifest is provenance metadata. No Kenney logo used in game.",
+  "files": [
+    {
+      "file": "characters/character_beige_idle.png",
+      "original": "Sprites/Characters/Double/character_beige_idle.png",
+      "bytes": 6051,
+      "width": 256,
+      "height": 256,
+      "sha256": "bebb5cb0133d123e9f1511580a097607a92dd874239e656ca3e63843b8bedfbe"
+    },
+    {
+      "file": "characters/character_beige_walk_a.png",
+      "original": "Sprites/Characters/Double/character_beige_walk_a.png",
+      "bytes": 5967,
+      "width": 256,
+      "height": 256,
+      "sha256": "fdd93400636dec45343ad482bbfd9dcc1f5f7ff62fab5e168b7d214a8f73947c"
+    },
+    {
+      "file": "characters/character_beige_walk_b.png",
+      "original": "Sprites/Characters/Double/character_beige_walk_b.png",
+      "bytes": 6180,
+      "width": 256,
+      "height": 256,
+      "sha256": "b386016d646f3f5eb75499a426baeab1a9579e348ea7ae014d94a6cd7154e913"
+    },
+    {
+      "file": "characters/character_beige_jump.png",
+      "original": "Sprites/Characters/Double/character_beige_jump.png",
+      "bytes": 6258,
+      "width": 256,
+      "height": 256,
+      "sha256": "2193dc5d528ba5ab486a2568a4ad01edb777d50e52c7b82579ba35520f83b7fa"
+    },
+    {
+      "file": "characters/character_beige_duck.png",
+      "original": "Sprites/Characters/Double/character_beige_duck.png",
+      "bytes": 5736,
+      "width": 256,
+      "height": 256,
+      "sha256": "59246d26b2036e507779d6773eef2d6cccb8d77821e2d545ea92eef999f0d787"
+    },
+    {
+      "file": "characters/character_beige_hit.png",
+      "original": "Sprites/Characters/Double/character_beige_hit.png",
+      "bytes": 6402,
+      "width": 256,
+      "height": 256,
+      "sha256": "0433ee32ce44958a7d2d9811504d9f8c68e83af2828cd51ba7608989fe9c81b1"
+    },
+    {
+      "file": "characters/character_beige_front.png",
+      "original": "Sprites/Characters/Double/character_beige_front.png",
+      "bytes": 6200,
+      "width": 256,
+      "height": 256,
+      "sha256": "e9a62137dfab382680aad6395c5cb3b1da6ee0baea832338362189cc23f316f1"
+    },
+    {
+      "file": "characters/character_green_idle.png",
+      "original": "Sprites/Characters/Double/character_green_idle.png",
+      "bytes": 6122,
+      "width": 256,
+      "height": 256,
+      "sha256": "bef7ccb39184d5273cd9219eb301ea93af297c8a65c6cb4d7aec720e30ab808a"
+    },
+    {
+      "file": "characters/character_green_walk_a.png",
+      "original": "Sprites/Characters/Double/character_green_walk_a.png",
+      "bytes": 6073,
+      "width": 256,
+      "height": 256,
+      "sha256": "4d6921cbd5396909e47cef6938089aca6921f9e94041363ce14074bb9fe54d9b"
+    },
+    {
+      "file": "characters/character_green_walk_b.png",
+      "original": "Sprites/Characters/Double/character_green_walk_b.png",
+      "bytes": 6201,
+      "width": 256,
+      "height": 256,
+      "sha256": "1aeb86940527f16ffe2cc1af2a20a3f51c3f51d487730b1e0aaeb2b3325606a2"
+    },
+    {
+      "file": "characters/character_green_jump.png",
+      "original": "Sprites/Characters/Double/character_green_jump.png",
+      "bytes": 6233,
+      "width": 256,
+      "height": 256,
+      "sha256": "9503a9572f23efeb20f2d499a9dc695d64ac7f123a8ab9705f18dea6c79fa91a"
+    },
+    {
+      "file": "characters/character_green_duck.png",
+      "original": "Sprites/Characters/Double/character_green_duck.png",
+      "bytes": 5723,
+      "width": 256,
+      "height": 256,
+      "sha256": "ccbdcb3b0c470376be028cdf0327d9b65e54732a98c51f0a6061eb39a07b0550"
+    },
+    {
+      "file": "characters/character_green_hit.png",
+      "original": "Sprites/Characters/Double/character_green_hit.png",
+      "bytes": 6315,
+      "width": 256,
+      "height": 256,
+      "sha256": "1d7a72226f5d0cc1c3ec9a178b2af91f85623dbdec8d49c61701101a3daa4f29"
+    },
+    {
+      "file": "characters/character_green_front.png",
+      "original": "Sprites/Characters/Double/character_green_front.png",
+      "bytes": 6266,
+      "width": 256,
+      "height": 256,
+      "sha256": "e07ea6d74612243e25904f8407ec3d7857cf7ea91ff9635653211f96e1b77d4c"
+    },
+    {
+      "file": "characters/character_pink_idle.png",
+      "original": "Sprites/Characters/Double/character_pink_idle.png",
+      "bytes": 6234,
+      "width": 256,
+      "height": 256,
+      "sha256": "336c30d7370584e97eabcde0440ff5a49f4aeb3144045e2abcc689bf0ac51713"
+    },
+    {
+      "file": "characters/character_pink_walk_a.png",
+      "original": "Sprites/Characters/Double/character_pink_walk_a.png",
+      "bytes": 6223,
+      "width": 256,
+      "height": 256,
+      "sha256": "1d157e59249045c2521f1c8b9e0e0ec843dff9e9f0bb34888a73b51ee38d6e9f"
+    },
+    {
+      "file": "characters/character_pink_walk_b.png",
+      "original": "Sprites/Characters/Double/character_pink_walk_b.png",
+      "bytes": 6409,
+      "width": 256,
+      "height": 256,
+      "sha256": "05c088583620abdbf3f6d419d48b124c63bed30f0b7ad3da95e70f8b381fddfe"
+    },
+    {
+      "file": "characters/character_pink_jump.png",
+      "original": "Sprites/Characters/Double/character_pink_jump.png",
+      "bytes": 6435,
+      "width": 256,
+      "height": 256,
+      "sha256": "6487a43bd7c0903735e0475c185c1db0b9d0b3d6156b223b0a543a5a9dc082fd"
+    },
+    {
+      "file": "characters/character_pink_duck.png",
+      "original": "Sprites/Characters/Double/character_pink_duck.png",
+      "bytes": 5993,
+      "width": 256,
+      "height": 256,
+      "sha256": "a592603b5abcfd8603a4df06a5a229e537440868be12cc8c7d4b326df234f58b"
+    },
+    {
+      "file": "characters/character_pink_hit.png",
+      "original": "Sprites/Characters/Double/character_pink_hit.png",
+      "bytes": 6536,
+      "width": 256,
+      "height": 256,
+      "sha256": "6ac5ad1e0ab8260c46b5d7b5ab8a46d434472c28e699db7d5ac05c5f9ab0be74"
+    },
+    {
+      "file": "characters/character_pink_front.png",
+      "original": "Sprites/Characters/Double/character_pink_front.png",
+      "bytes": 6382,
+      "width": 256,
+      "height": 256,
+      "sha256": "f1e17ac43ea65e906808eba792915f1a3dddb841bf3dd03fd05f814d04b2f83e"
+    },
+    {
+      "file": "characters/character_purple_idle.png",
+      "original": "Sprites/Characters/Double/character_purple_idle.png",
+      "bytes": 6310,
+      "width": 256,
+      "height": 256,
+      "sha256": "c9480c9b77ef59154b247eefd1bc461a259ccf5a0be49ff5f50fc968657cd9e4"
+    },
+    {
+      "file": "characters/character_purple_walk_a.png",
+      "original": "Sprites/Characters/Double/character_purple_walk_a.png",
+      "bytes": 6320,
+      "width": 256,
+      "height": 256,
+      "sha256": "ba997985e3de83252c386d9df471f28ba78723fc38a09447abefd7b6b6b00671"
+    },
+    {
+      "file": "characters/character_purple_walk_b.png",
+      "original": "Sprites/Characters/Double/character_purple_walk_b.png",
+      "bytes": 6347,
+      "width": 256,
+      "height": 256,
+      "sha256": "1e5ec7884fb5c5fa22cdcd692297abdd6ba79239094d019e12a093755bcc851b"
+    },
+    {
+      "file": "characters/character_purple_jump.png",
+      "original": "Sprites/Characters/Double/character_purple_jump.png",
+      "bytes": 6381,
+      "width": 256,
+      "height": 256,
+      "sha256": "7ddfd979269dc5814504932cfc17ca878cb1e9b058441acb8c1afd29ff3f25ce"
+    },
+    {
+      "file": "characters/character_purple_duck.png",
+      "original": "Sprites/Characters/Double/character_purple_duck.png",
+      "bytes": 5976,
+      "width": 256,
+      "height": 256,
+      "sha256": "0531b58a913fd2e385b85d9cbf393a85aeb86c7280853f816c4a7bba6aa75b49"
+    },
+    {
+      "file": "characters/character_purple_hit.png",
+      "original": "Sprites/Characters/Double/character_purple_hit.png",
+      "bytes": 6549,
+      "width": 256,
+      "height": 256,
+      "sha256": "08b9913b67e6b195eb2c2aa5e4ffc579c7b178b36374e2b3b7ccbe7c5a2579b0"
+    },
+    {
+      "file": "characters/character_purple_front.png",
+      "original": "Sprites/Characters/Double/character_purple_front.png",
+      "bytes": 6411,
+      "width": 256,
+      "height": 256,
+      "sha256": "b3f2ae5b5452f2b3ff770303b0f5821df697e76d67461b4bb1256733dfc6f59e"
+    },
+    {
+      "file": "characters/character_yellow_idle.png",
+      "original": "Sprites/Characters/Double/character_yellow_idle.png",
+      "bytes": 6115,
+      "width": 256,
+      "height": 256,
+      "sha256": "8f108ffc12f296bdaae1887ea91c1cfa8a6d4c68e880135f3be3f5ac1171446e"
+    },
+    {
+      "file": "characters/character_yellow_walk_a.png",
+      "original": "Sprites/Characters/Double/character_yellow_walk_a.png",
+      "bytes": 6063,
+      "width": 256,
+      "height": 256,
+      "sha256": "c847eeb10aded4c1541b037acd387b55e62c7c8129a5dd947ede2d3f761198a0"
+    },
+    {
+      "file": "characters/character_yellow_walk_b.png",
+      "original": "Sprites/Characters/Double/character_yellow_walk_b.png",
+      "bytes": 6263,
+      "width": 256,
+      "height": 256,
+      "sha256": "48cb4cb56bdf103ac5a522e6c6a8872f72f9e8339b47baba9e89ab9c9f5fc304"
+    },
+    {
+      "file": "characters/character_yellow_jump.png",
+      "original": "Sprites/Characters/Double/character_yellow_jump.png",
+      "bytes": 6307,
+      "width": 256,
+      "height": 256,
+      "sha256": "67757b0593d5276c3be5322832f6c5c32302fc4686330f6cf510512f89f4c880"
+    },
+    {
+      "file": "characters/character_yellow_duck.png",
+      "original": "Sprites/Characters/Double/character_yellow_duck.png",
+      "bytes": 5935,
+      "width": 256,
+      "height": 256,
+      "sha256": "f764010e17b27b266b3fbbf6d5408a001b7bd8ab1f5101f70a909d4e2e1afe0c"
+    },
+    {
+      "file": "characters/character_yellow_hit.png",
+      "original": "Sprites/Characters/Double/character_yellow_hit.png",
+      "bytes": 6467,
+      "width": 256,
+      "height": 256,
+      "sha256": "651d91fb40698d0320ba15f4edbcb0e040303b9407073562a82a087eba368a68"
+    },
+    {
+      "file": "characters/character_yellow_front.png",
+      "original": "Sprites/Characters/Double/character_yellow_front.png",
+      "bytes": 6281,
+      "width": 256,
+      "height": 256,
+      "sha256": "a6cb04950c9e56eb45098bfeb43d8e6f49c3235a0f2c6ee559726cc7b99684de"
+    },
+    {
+      "file": "backgrounds/background_clouds.png",
+      "original": "Sprites/Backgrounds/Double/background_clouds.png",
+      "bytes": 3761,
+      "width": 512,
+      "height": 512,
+      "sha256": "c3edc09ffe6a2883fb2bdb3984e34d1d69ddcdc7f5253711b20c1ac4630551c3"
+    },
+    {
+      "file": "backgrounds/background_color_hills.png",
+      "original": "Sprites/Backgrounds/Double/background_color_hills.png",
+      "bytes": 3751,
+      "width": 512,
+      "height": 512,
+      "sha256": "edeabb1090639058b60c8b109cfe6f5eb0866447fc7235d44ef930ea6f1927fe"
+    },
+    {
+      "file": "backgrounds/background_color_trees.png",
+      "original": "Sprites/Backgrounds/Double/background_color_trees.png",
+      "bytes": 6040,
+      "width": 512,
+      "height": 512,
+      "sha256": "9465a1120291304303790629ed6adbf042987c23e36a3fc65f8f179b9eb9ccc8"
+    },
+    {
+      "file": "backgrounds/background_color_desert.png",
+      "original": "Sprites/Backgrounds/Double/background_color_desert.png",
+      "bytes": 5493,
+      "width": 512,
+      "height": 512,
+      "sha256": "7e7b562512a21d2fc843c64ad33e85c175f024fa8e49cb2499dab12e8c93954d"
+    },
+    {
+      "file": "backgrounds/background_fade_hills.png",
+      "original": "Sprites/Backgrounds/Double/background_fade_hills.png",
+      "bytes": 2271,
+      "width": 512,
+      "height": 512,
+      "sha256": "afcf41aa5f87008f2c78e7d43bc700336e5392b881a1a9b8a0dfebee9ab39020"
+    },
+    {
+      "file": "backgrounds/background_fade_trees.png",
+      "original": "Sprites/Backgrounds/Double/background_fade_trees.png",
+      "bytes": 4117,
+      "width": 512,
+      "height": 512,
+      "sha256": "e88852efe2e5e92c9178b4b02fad785940defeb92d1def0f6d1b5cbd03ca2d39"
+    },
+    {
+      "file": "backgrounds/background_fade_desert.png",
+      "original": "Sprites/Backgrounds/Double/background_fade_desert.png",
+      "bytes": 3672,
+      "width": 512,
+      "height": 512,
+      "sha256": "343e5bbf0fb6d19806e22205fd95393f959ef2329496d882ed3678f6483430d2"
+    },
+    {
+      "file": "tiles/coin_gold.png",
+      "original": "Sprites/Tiles/Double/coin_gold.png",
+      "bytes": 2164,
+      "width": 128,
+      "height": 128,
+      "sha256": "d47ad8bc9957a1301ce2b649176652330a31e3ff5728f891d2408f295a1de615"
+    },
+    {
+      "file": "tiles/coin_gold_side.png",
+      "original": "Sprites/Tiles/Double/coin_gold_side.png",
+      "bytes": 619,
+      "width": 128,
+      "height": 128,
+      "sha256": "92ec90ff76a7063c4c1b76817f04967c3d4bfbb54e3ba1e080f4411b029b82ee"
+    },
+    {
+      "file": "tiles/gem_blue.png",
+      "original": "Sprites/Tiles/Double/gem_blue.png",
+      "bytes": 1436,
+      "width": 128,
+      "height": 128,
+      "sha256": "a31d49f2cc177317e8de07139a0b0099662bcb1ee4e67abe18661b19a64a7990"
+    },
+    {
+      "file": "tiles/gem_green.png",
+      "original": "Sprites/Tiles/Double/gem_green.png",
+      "bytes": 1421,
+      "width": 128,
+      "height": 128,
+      "sha256": "5245ce430d636eab5033d15104744bd7481dcd4d7c9b6b5a1588a758784653c6"
+    },
+    {
+      "file": "tiles/gem_red.png",
+      "original": "Sprites/Tiles/Double/gem_red.png",
+      "bytes": 1434,
+      "width": 128,
+      "height": 128,
+      "sha256": "bd141c2ea6df17d6ac9fb24dbcbc7123671d6a214941975d80cbf5616000fd2c"
+    },
+    {
+      "file": "tiles/gem_yellow.png",
+      "original": "Sprites/Tiles/Double/gem_yellow.png",
+      "bytes": 1394,
+      "width": 128,
+      "height": 128,
+      "sha256": "bcb99e8904bbfcf852ed0a879b8fa3cf3eae994467d2b5db28b6fc6963e45a1a"
+    },
+    {
+      "file": "tiles/star.png",
+      "original": "Sprites/Tiles/Double/star.png",
+      "bytes": 2369,
+      "width": 128,
+      "height": 128,
+      "sha256": "f7d0a92a4d3eaa97a40823e267f093b5e6d581546aee6dfd3c108c507328a039"
+    },
+    {
+      "file": "tiles/heart.png",
+      "original": "Sprites/Tiles/Double/heart.png",
+      "bytes": 1226,
+      "width": 128,
+      "height": 128,
+      "sha256": "f38914b5ec0e26e9ad33bed26eec07250293bfd0a1ffa9589eaeb5f0d6678d22"
+    },
+    {
+      "file": "tiles/hud_heart.png",
+      "original": "Sprites/Tiles/Double/hud_heart.png",
+      "bytes": 1685,
+      "width": 128,
+      "height": 128,
+      "sha256": "99d2b1050134368712b9319c9f875794202c884cbf049b4610b7ad5d84f7138d"
+    },
+    {
+      "file": "tiles/hud_heart_empty.png",
+      "original": "Sprites/Tiles/Double/hud_heart_empty.png",
+      "bytes": 1683,
+      "width": 128,
+      "height": 128,
+      "sha256": "fd1f534583b81cf949ef0166f540c9ca16549f30a8966ca5bbe55efd2213b36d"
+    },
+    {
+      "file": "tiles/hud_coin.png",
+      "original": "Sprites/Tiles/Double/hud_coin.png",
+      "bytes": 2407,
+      "width": 128,
+      "height": 128,
+      "sha256": "58a3602b79489dade5451302e35e969cea6d80db9013478e4f01f9261e5b3e96"
+    },
+    {
+      "file": "tiles/spikes.png",
+      "original": "Sprites/Tiles/Double/spikes.png",
+      "bytes": 1469,
+      "width": 128,
+      "height": 128,
+      "sha256": "d4bbdf39ef4941c68f8e4d8783c7d22c3ab588bdd53f270f437dee8a0bc8f6fe"
+    },
+    {
+      "file": "tiles/block_planks.png",
+      "original": "Sprites/Tiles/Double/block_planks.png",
+      "bytes": 2472,
+      "width": 128,
+      "height": 128,
+      "sha256": "6c7f719da2ad385f1f552f1e3a052be289951dd0fdb9429f2a07c2c335bbb148"
+    },
+    {
+      "file": "tiles/block_strong_danger.png",
+      "original": "Sprites/Tiles/Double/block_strong_danger.png",
+      "bytes": 1352,
+      "width": 128,
+      "height": 128,
+      "sha256": "f8dc3442299bce613fc4d8c02e7267ee6b4745193c958a4dab5f00ce0cd90023"
+    },
+    {
+      "file": "tiles/rock.png",
+      "original": "Sprites/Tiles/Double/rock.png",
+      "bytes": 1650,
+      "width": 128,
+      "height": 128,
+      "sha256": "ea755e50c2298d1e9bbdd76c72bea811d93a3062f2fe77893b16eac5fa3d3162"
+    },
+    {
+      "file": "tiles/spring.png",
+      "original": "Sprites/Tiles/Double/spring.png",
+      "bytes": 1223,
+      "width": 128,
+      "height": 128,
+      "sha256": "9468c4dd80a50a1b2c29f210dd01d6cf258ff321a0fe23ce5795743ccdf2256d"
+    },
+    {
+      "file": "tiles/spring_out.png",
+      "original": "Sprites/Tiles/Double/spring_out.png",
+      "bytes": 2361,
+      "width": 128,
+      "height": 128,
+      "sha256": "2df823e40193770c9ea5b32df8fe07a0722637dd44430246600be340ef2e5a0e"
+    },
+    {
+      "file": "tiles/bush.png",
+      "original": "Sprites/Tiles/Double/bush.png",
+      "bytes": 2145,
+      "width": 128,
+      "height": 128,
+      "sha256": "db6409462946d9289ac2f3663cee9d5429ff3e0ef2f1ec86d709729925683065"
+    },
+    {
+      "file": "tiles/grass.png",
+      "original": "Sprites/Tiles/Double/grass.png",
+      "bytes": 2873,
+      "width": 128,
+      "height": 128,
+      "sha256": "43010738253232dc2905d9759a2291a27e10abeac0ce2cbafa6048008ef44359"
+    },
+    {
+      "file": "tiles/fence.png",
+      "original": "Sprites/Tiles/Double/fence.png",
+      "bytes": 665,
+      "width": 128,
+      "height": 128,
+      "sha256": "82f59c74c07622cbf230e7c5f9e88598a8c1e3aed1508475b13fb44ed2e5d4cc"
+    },
+    {
+      "file": "tiles/sign_right.png",
+      "original": "Sprites/Tiles/Double/sign_right.png",
+      "bytes": 1316,
+      "width": 128,
+      "height": 128,
+      "sha256": "e2f2def483048b4940901d407f88fa0c6fb7712f8511b52bda2b49e4cd253b30"
+    },
+    {
+      "file": "tiles/flag_green_a.png",
+      "original": "Sprites/Tiles/Double/flag_green_a.png",
+      "bytes": 1291,
+      "width": 128,
+      "height": 128,
+      "sha256": "0b3839116da5d1778559f7749ddbe223e618d29d763c555f3e258f773f759054"
+    },
+    {
+      "file": "tiles/flag_green_b.png",
+      "original": "Sprites/Tiles/Double/flag_green_b.png",
+      "bytes": 1305,
+      "width": 128,
+      "height": 128,
+      "sha256": "c353b61237fb44d08bfc7002de079aaec704922c4d2c4bdf511cc3fc6385bf49"
+    },
+    {
+      "file": "tiles/fireball.png",
+      "original": "Sprites/Tiles/Double/fireball.png",
+      "bytes": 2485,
+      "width": 128,
+      "height": 128,
+      "sha256": "a204934dad3cc829ca70393c245ffa40b009fad3da1bc8458b008c58f1330da4"
+    },
+    {
+      "file": "tiles/saw.png",
+      "original": "Sprites/Tiles/Double/saw.png",
+      "bytes": 3165,
+      "width": 128,
+      "height": 128,
+      "sha256": "4b37e81cf7110a6e49e7909c323fa356d63000423a5f996a3c968b7bc9e072cb"
+    },
+    {
+      "file": "tiles/terrain_grass_block_top.png",
+      "original": "Sprites/Tiles/Double/terrain_grass_block_top.png",
+      "bytes": 1245,
+      "width": 128,
+      "height": 128,
+      "sha256": "4f3966fb8449e75ae284fdd78befb23fb9e1c7e15a27b6a0b88c6bea412fc864"
+    },
+    {
+      "file": "tiles/terrain_grass_block_center.png",
+      "original": "Sprites/Tiles/Double/terrain_grass_block_center.png",
+      "bytes": 1211,
+      "width": 128,
+      "height": 128,
+      "sha256": "3902d4ddd2a2653b678bf71885527657d42eab8e08c082ae64f2eb3f95c837e7"
+    },
+    {
+      "file": "tiles/terrain_grass_horizontal_left.png",
+      "original": "Sprites/Tiles/Double/terrain_grass_horizontal_left.png",
+      "bytes": 1702,
+      "width": 128,
+      "height": 128,
+      "sha256": "950210f26e62c23e406c47db95d80616113548c0059ab2d0782a8d645c4186f0"
+    },
+    {
+      "file": "tiles/terrain_grass_horizontal_middle.png",
+      "original": "Sprites/Tiles/Double/terrain_grass_horizontal_middle.png",
+      "bytes": 1133,
+      "width": 128,
+      "height": 128,
+      "sha256": "597a504b48f0851fd59f2bc76d01582776b111971682275e768c13cb42e64e6c"
+    },
+    {
+      "file": "tiles/terrain_grass_horizontal_right.png",
+      "original": "Sprites/Tiles/Double/terrain_grass_horizontal_right.png",
+      "bytes": 1719,
+      "width": 128,
+      "height": 128,
+      "sha256": "4af87652ffe518e2c6abc12576fe6f921589bb9344f4da26b56015e42c8a0476"
+    },
+    {
+      "file": "tiles/terrain_purple_block_top.png",
+      "original": "Sprites/Tiles/Double/terrain_purple_block_top.png",
+      "bytes": 1208,
+      "width": 128,
+      "height": 128,
+      "sha256": "247944d1cf7f5d373a63f9c983ed62570b85789e86059831e07e9bf8dc960c44"
+    },
+    {
+      "file": "tiles/terrain_purple_block_center.png",
+      "original": "Sprites/Tiles/Double/terrain_purple_block_center.png",
+      "bytes": 1038,
+      "width": 128,
+      "height": 128,
+      "sha256": "1ec5d7a83091f8b321404c1285565dcdad72cee1758ef1cba37f190605facbb0"
+    },
+    {
+      "file": "tiles/terrain_purple_horizontal_left.png",
+      "original": "Sprites/Tiles/Double/terrain_purple_horizontal_left.png",
+      "bytes": 1781,
+      "width": 128,
+      "height": 128,
+      "sha256": "7034b6752bdce5312b0f00ecb1e9770c64e036905b5ce4c7c1236ef08bb92a86"
+    },
+    {
+      "file": "tiles/terrain_purple_horizontal_middle.png",
+      "original": "Sprites/Tiles/Double/terrain_purple_horizontal_middle.png",
+      "bytes": 1209,
+      "width": 128,
+      "height": 128,
+      "sha256": "62f8a0eb50368ac97fc0bdaf0ddaa2eb3de811f0da7e2798597fa07dfa40f325"
+    },
+    {
+      "file": "tiles/terrain_purple_horizontal_right.png",
+      "original": "Sprites/Tiles/Double/terrain_purple_horizontal_right.png",
+      "bytes": 1793,
+      "width": 128,
+      "height": 128,
+      "sha256": "8b5e2b19981cdd56e24384aac99691bf6a8946b4a7b1a8656f7cf9267d34c089"
+    },
+    {
+      "file": "tiles/terrain_sand_block_top.png",
+      "original": "Sprites/Tiles/Double/terrain_sand_block_top.png",
+      "bytes": 1713,
+      "width": 128,
+      "height": 128,
+      "sha256": "67adda5b271dd1273f3d8aeb6169f096272b1cca1741e08a0c2d82a1af9697e8"
+    },
+    {
+      "file": "tiles/terrain_sand_block_center.png",
+      "original": "Sprites/Tiles/Double/terrain_sand_block_center.png",
+      "bytes": 1217,
+      "width": 128,
+      "height": 128,
+      "sha256": "da8fe4ec0a805723108e237f729c304832fc26122d2dc914c2040697d04a560d"
+    },
+    {
+      "file": "tiles/terrain_sand_horizontal_left.png",
+      "original": "Sprites/Tiles/Double/terrain_sand_horizontal_left.png",
+      "bytes": 2001,
+      "width": 128,
+      "height": 128,
+      "sha256": "003b111b53e5426120b03e81d183ccc42132deac82515a9941c79e2d76e219c2"
+    },
+    {
+      "file": "tiles/terrain_sand_horizontal_middle.png",
+      "original": "Sprites/Tiles/Double/terrain_sand_horizontal_middle.png",
+      "bytes": 1520,
+      "width": 128,
+      "height": 128,
+      "sha256": "678cde466242897f990c546de57debc7f1a63ad755d1ad8d290f462730818847"
+    },
+    {
+      "file": "tiles/terrain_sand_horizontal_right.png",
+      "original": "Sprites/Tiles/Double/terrain_sand_horizontal_right.png",
+      "bytes": 2036,
+      "width": 128,
+      "height": 128,
+      "sha256": "323161d6ac708eed29a94606d9e429e03116b6113ea483b0ee8d222316c70e2b"
+    },
+    {
+      "file": "enemies/bee_a.png",
+      "original": "Sprites/Enemies/Double/bee_a.png",
+      "bytes": 3330,
+      "width": 128,
+      "height": 128,
+      "sha256": "4d1ec986cf07697d8984d7128f56c00d1a59969f5068011cac8e957b5963633e"
+    },
+    {
+      "file": "enemies/bee_b.png",
+      "original": "Sprites/Enemies/Double/bee_b.png",
+      "bytes": 2830,
+      "width": 128,
+      "height": 128,
+      "sha256": "ba6af5a35bf4b9eb3485bee7a4e0486d7e48d559c0c0f12a06868333830bfe3a"
+    },
+    {
+      "file": "enemies/fly_a.png",
+      "original": "Sprites/Enemies/Double/fly_a.png",
+      "bytes": 3376,
+      "width": 128,
+      "height": 128,
+      "sha256": "5f9a33845fcc949a9f47feb99cdde8217342c75dce208cdfb77d9e9da186a668"
+    },
+    {
+      "file": "enemies/fly_b.png",
+      "original": "Sprites/Enemies/Double/fly_b.png",
+      "bytes": 3098,
+      "width": 128,
+      "height": 128,
+      "sha256": "16e1f9434f2c363012284aa1dd33759e5e080055b2bb0d697084cf3720d9bc09"
+    },
+    {
+      "file": "enemies/slime_normal_walk_a.png",
+      "original": "Sprites/Enemies/Double/slime_normal_walk_a.png",
+      "bytes": 1678,
+      "width": 128,
+      "height": 128,
+      "sha256": "2768a1821c40eea404f578d4c8cf6545a6e49cd505fb0f606a626777b7c66615"
+    },
+    {
+      "file": "enemies/slime_normal_walk_b.png",
+      "original": "Sprites/Enemies/Double/slime_normal_walk_b.png",
+      "bytes": 1645,
+      "width": 128,
+      "height": 128,
+      "sha256": "2f6a7387550f0d61fd5fdf144da1ea3e824bfa231fa6fe93986d726bf3e14da4"
+    },
+    {
+      "file": "enemies/slime_normal_flat.png",
+      "original": "Sprites/Enemies/Double/slime_normal_flat.png",
+      "bytes": 1076,
+      "width": 128,
+      "height": 128,
+      "sha256": "fbcbeda42a8d4cbd33b069d97676f7c49fcfc7d9a688205ee4d3f36b739651b2"
+    },
+    {
+      "file": "enemies/saw_a.png",
+      "original": "Sprites/Enemies/Double/saw_a.png",
+      "bytes": 3048,
+      "width": 128,
+      "height": 128,
+      "sha256": "b7d8bfb72384f37f659dc4362a461969e047d0e1ad2d39139e9b0330924fb4d8"
+    },
+    {
+      "file": "enemies/saw_b.png",
+      "original": "Sprites/Enemies/Double/saw_b.png",
+      "bytes": 3324,
+      "width": 128,
+      "height": 128,
+      "sha256": "2de7f7f3e612307705e31dee80b2db4dfcb8818cf4c41d8b6ca7d09fe6375753"
+    },
+    {
+      "file": "enemies/mouse_walk_a.png",
+      "original": "Sprites/Enemies/Double/mouse_walk_a.png",
+      "bytes": 2155,
+      "width": 128,
+      "height": 128,
+      "sha256": "dac6a405f815e39ced70f632a71eefa8402438a6f6d30313e6bd5693b14e0422"
+    },
+    {
+      "file": "enemies/mouse_walk_b.png",
+      "original": "Sprites/Enemies/Double/mouse_walk_b.png",
+      "bytes": 2177,
+      "width": 128,
+      "height": 128,
+      "sha256": "124d3fb741d9dc502df4a34ab4c974d54fe3a9bc1893dbabc27ee055a663d45b"
+    },
+    {
+      "file": "sounds/sfx_bump.ogg",
+      "original": "Sounds/sfx_bump.ogg",
+      "bytes": 5454,
+      "sha256": "165ad7337553e88ca9bc1c267980c090875b3ba0c6f2066387cbd28dfa0ac682"
+    },
+    {
+      "file": "sounds/sfx_coin.ogg",
+      "original": "Sounds/sfx_coin.ogg",
+      "bytes": 5572,
+      "sha256": "38c897c7a0f056e8cda892ca4a31639e1397ef9c70490351ecb0c4df0cc95e45"
+    },
+    {
+      "file": "sounds/sfx_disappear.ogg",
+      "original": "Sounds/sfx_disappear.ogg",
+      "bytes": 9939,
+      "sha256": "83d034a1bf133745f9772b11f31537d231ae7c3ca8b150468fe5ffff19baabbb"
+    },
+    {
+      "file": "sounds/sfx_gem.ogg",
+      "original": "Sounds/sfx_gem.ogg",
+      "bytes": 7414,
+      "sha256": "a8b9259598dd26e79afa2b802e296e175662f3e28651c65eac96af71f306794d"
+    },
+    {
+      "file": "sounds/sfx_hurt.ogg",
+      "original": "Sounds/sfx_hurt.ogg",
+      "bytes": 5804,
+      "sha256": "ee126f78cfd70e665c37d7afe7e1dc0fa84d6b2ab25ce27d797738d54d082ec6"
+    },
+    {
+      "file": "sounds/sfx_jump-high.ogg",
+      "original": "Sounds/sfx_jump-high.ogg",
+      "bytes": 8396,
+      "sha256": "39a049350321dc8cd9e2e19df746d18f56135dadd7aa239498fa25f9f8b4c5f5"
+    },
+    {
+      "file": "sounds/sfx_jump.ogg",
+      "original": "Sounds/sfx_jump.ogg",
+      "bytes": 5926,
+      "sha256": "7a0e42879c60350c6866976e8f6013943d9cb78a5ff1d126107ae3322566ee8f"
+    },
+    {
+      "file": "sounds/sfx_magic.ogg",
+      "original": "Sounds/sfx_magic.ogg",
+      "bytes": 9594,
+      "sha256": "c63c0abb1353c633993e1fa1acea68b27ee0119c842b095783b78879727476d5"
+    },
+    {
+      "file": "sounds/sfx_select.ogg",
+      "original": "Sounds/sfx_select.ogg",
+      "bytes": 5252,
+      "sha256": "6aecd59f1216107ffce484055950d76a066f0b02581cf7d3bbe5bb363c216f54"
+    },
+    {
+      "file": "sounds/sfx_throw.ogg",
+      "original": "Sounds/sfx_throw.ogg",
+      "bytes": 5786,
+      "sha256": "98e9154af18ac4a4ec7d4f249edca6c2315854c48c996019fe387da3f22778f0"
+    }
+  ]
+}

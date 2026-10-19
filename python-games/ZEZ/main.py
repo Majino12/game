@@ -1,58 +1,30 @@
-import pygame
-from modules.scene import startMenu, gameRun, gameOver
-from modules.interface.loadres import load_resources
-from consts import SCREEN_WIDTH, SCREEN_HEIGHT
-
-_HIGHSCORE_PATH = 'highscore.txt'
-
-
-def _load_high_score():
-    try:
-        with open(_HIGHSCORE_PATH) as f:
-            return int(f.read().strip())
-    except Exception:
-        return 0
-
-
-def _save_high_score(score):
-    try:
-        with open(_HIGHSCORE_PATH, 'w') as f:
-            f.write(str(score))
-    except Exception:
-        pass
+"""Launch ZEZ from any working directory."""
+import argparse
+import os
 
 
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("ZEZ")
-    clock = pygame.time.Clock()
-
-    resources  = load_resources()
-    high_score = _load_high_score()
-
-    startMenu.run(screen, clock, resources)
-
+    parser = argparse.ArgumentParser(description='ZEZ · Cloud Dash / 云端冲刺')
+    parser.add_argument('--headless', action='store_true', help='Use SDL dummy video/audio; never write a save')
+    parser.add_argument('--frames', type=int, default=0, help='Exit after N rendered frames')
+    parser.add_argument('--scene', choices=['menu', 'run', 'pause', 'over', 'boss'], default='menu')
+    parser.add_argument('--seed', type=int, help='Deterministic course seed')
+    parser.add_argument('--screenshot', help='Save the last 1280x720 frame as PNG')
+    args = parser.parse_args()
+    if args.headless:
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        os.environ['SDL_AUDIODRIVER'] = 'dummy'
+        if not args.frames:
+            args.frames = 1
+    os.environ.setdefault('PYGAME_HIDE_SUPPORT_PROMPT', '1')
     try:
-        pygame.mixer.music.load(resources['background_music'])
-        pygame.mixer.music.play(-1)
-    except Exception as e:
-        print(f"[BGM] skipped background music: {e}")
-
-    playing = True
-    while playing:
-        game_result = gameRun.run(screen, clock, resources, high_score)
-        high_score  = max(high_score, game_result['score'])
-        _save_high_score(high_score)
-
-        playing = gameOver.run(screen, clock, resources, game_result, high_score)
-
-    try:
-        pygame.mixer.music.stop()
-    except Exception:
-        pass
-    pygame.quit()
+        from runner.app import App
+    except ModuleNotFoundError as exc:
+        if exc.name == 'pygame':
+            parser.exit(1, 'Pygame is missing. Run: python3 -m pip install -r requirements.txt\n')
+        raise
+    App(headless=args.headless, seed=args.seed).loop(args.frames, args.screenshot, args.scene)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

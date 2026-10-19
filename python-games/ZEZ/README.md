@@ -1,480 +1,177 @@
-# ZEZ — Pygame Runner
+# ZEZ · 云端冲刺 / Cloud Dash
 
----
+跳过木箱，滑过飞行障碍，追着金币跑向下一片天空；蜂巢守卫出现时，一边躲波一边射击，击破后继续冒险。游戏围绕二段跳、滑铲、连击奖励、主动冲刺与 Boss 战展开，使用 Python + Pygame CE，支持中英文界面。
 
-## 목차 / Table of Contents / 目录
+![主菜单与角色选择](docs/screenshots/menu.png)
 
-- [한국어](#한국어)
-- [English](#english)
-- [中文（简体）](#中文简体)
+## 安装与启动
 
----
+需要 **Python 3.9+** 和桌面图形环境。唯一运行依赖为 `pygame-ce==2.5.6`，已固定在 [`requirements.txt`](requirements.txt)。
 
-<br>
+**macOS**：双击 [`play.command`](play.command)。也可在终端执行 `./play.command`；如下载后的文件没有执行权限，先运行 `chmod +x play.command`。
 
-# 한국어
+**Windows**：双击 [`play.bat`](play.bat)。脚本优先使用 Python 启动器 `py -3`，没有启动器时尝试 `python`。
 
-## ZEZ — 로그라이크 러너 게임
+两个脚本都会在游戏目录创建独立的 `.venv`。首次安装依赖需要联网，安装成功后启动时只检查本地依赖，可以离线游玩。脚本不会自动安装 Python。
 
-> Pygame으로 제작된 2D 사이드스크롤 런게임입니다.  
-> 끝없이 달리며 장애물을 피하고, 보스를 처치하고, 퍽을 선택하며 점점 강해지세요.
-
----
-
-### 스크린샷 미리보기
-
-```
-┌────────────────────────────────────────┐
-│  Score: 42   Best: 120                 │
-│  Skill: ■■■□□   Shield: ◆◆            │
-│                                        │
-│    [플레이어 달리는 중...]              │
-│                                        │
-│  ── 지면 ─────────────────────────── │
-└────────────────────────────────────────┘
-```
-
----
-
-### 주요 기능
-
-| 기능 | 설명 |
-|------|------|
-| 무한 스크롤 | 배경·지면이 끝없이 흐르며 난이도가 점진적으로 상승 |
-| 이중(더블) 점프 | 공중에서 한 번 더 점프 가능, 스킬 발동 시 자동 사용 |
-| 스킬 시스템 | 5개 포인트를 모아 `J`키로 스킬 발사 |
-| 보스 방 | 점수 도달 시 보스 등장 → 처치 후 탈출 포탈 통과 |
-| 로그라이크 퍽 | 보스 처치마다 무작위 능력 3개 중 하나 선택 |
-| 최고 점수 저장 | `highscore.txt`에 자동 저장·불러오기 |
-
----
-
-### 설치 방법
-
-**요구 사항**
-
-- Python 3.10 이상 (개발 환경: Python 3.12.4)
-- pygame 2.x (개발 환경: pygame 2.6.1 / SDL 2.28.4)
+手动安装与运行，在本目录执行：
 
 ```bash
-# pygame 설치
-pip install pygame
+# macOS / Linux
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python main.py
 ```
 
----
+```bat
+:: Windows
+py -3 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe main.py
+```
 
-### 실행 방법
+图片和音频按源码所在位置加载，支持从任意工作目录通过 `main.py` 的绝对路径启动。例如从仓库根目录运行：
 
 ```bash
-# 프로젝트 루트 디렉터리에서 실행
-python main.py
+python-games/ZEZ/.venv/bin/python python-games/ZEZ/main.py
 ```
 
----
+默认窗口为 1152 × 648，可调整大小；画面按 1280 × 720 等比例缩放。没有可用中文字体时自动使用英文，安装系统中文字体后可切换中文。无音频设备时仍可游玩。
 
-### 조작 방법
-
-| 키 | 동작 |
-|----|------|
-| `Space` | 점프 / 더블 점프 |
-| `Left Ctrl` (누르는 동안) | 앉기(크라우치) |
-| `J` | 스킬 발사 (포인트 5개 필요) |
-| `1` / `2` / `3` | 퍽 선택 화면에서 카드 직접 선택 |
-| `◄` / `►` + `Enter` | 퍽 선택 화면에서 카드 탐색 후 확인 |
-| `ESC` | 보스 방 탈주 (보스 처치 점수 없음) |
-| `Enter` | 게임 오버 화면에서 재시작 |
-
----
-
-### 보스 방 흐름
-
-```
-점수 도달
-    │
-    ▼
-[ENTRY] 1초 경고 + 빨간 화면 깜빡임 (보스 동결)
-    │
-    ▼
-[FIGHT] 보스 탄환 발사 · J키로 스킬 공격
-    │ 보스 HP = 0
-    ▼
-[CLEAR] 녹색 탈출 포탈 등장 → 포탈 통과 시 보스 처치 카운트 +1
-    │                            + 점수 +50
-    ▼
-[PERK SELECTION] 무작위 퍽 3장 중 선택
-    │
-    ▼
-일반 런 재개
-```
-
-> **ESC로 탈주하면 보스 처치 카운트가 증가하지 않습니다.**
-
----
-
-### 퍽 목록 (9종)
-
-| 퍽 | 효과 |
-|----|------|
-| 도약 강화 | 점프 높이 크게 상승 |
-| 이중 도약 | 더블 점프 높이 향상 |
-| 에어 마스터 | 공중에서 1회 추가 점프 가능 |
-| 파워 서지 | 스킬 데미지 2배 (중첩 가능) |
-| 철갑 방어막 | 치명타 1회 무효화 |
-| 이중 방어막 | 치명타 2회 무효화 |
-| 빠른 충전 | 스킬 충전 필요량 -1 |
-| 연속 사격 | 동시 발사 슬롯 +2 |
-| 점수 사냥꾼 | 장애물 통과 득점 +1 |
-
----
-
-### 프로젝트 구조
-
-```
-ZEZ/
-├── main.py                        # 진입점, 최고 점수 관리
-├── consts.py                      # 전역 상수
-├── highscore.txt                  # 최고 점수 저장 파일
-├── modules/
-│   ├── perks.py                   # 퍽 데이터 정의 (9종)
-│   ├── interface/
-│   │   └── loadres.py             # 리소스 로더 (예외 처리 포함)
-│   ├── scene/
-│   │   ├── startMenu.py           # 시작 메뉴
-│   │   ├── gameRun.py             # 메인 게임 루프 (BossPhase 상태 머신)
-│   │   ├── perkSelect.py          # 퍽 선택 UI 씬
-│   │   └── gameOver.py            # 게임 오버 화면
-│   └── sprites/
-│       ├── role.py                # 플레이어 (상태 머신 + 퍽 속성)
-│       ├── obstacle.py            # 장애물 (지면 / 공중)
-│       ├── boss.py                # 보스 + 보스 스킬 탄환
-│       ├── portal.py              # 탈출 포탈 (SRCALPHA 펄스 효과)
-│       └── floor.py               # 지면
-└── resources/
-    ├── background/                # bg.png
-    ├── role/                      # run_1~10.png, jump.png, crouch.png, skill.png, boss.png
-    ├── obstacles/                 # ground_0~3.png, sky_0~3.png
-    └── sound/                     # background_music.mp3, jump.wav, game_over.wav
-```
-
----
-
-### 기술 스택
-
-- **언어**: Python 3.12
-- **프레임워크**: Pygame 2.6.1 (SDL 2.28.4)
-- **아키텍처**: OOP 씬 상태 머신 (`startMenu → gameRun → perkSelect → gameOver`)
-- **물리**: 고정 스텝 60 FPS, 중력 기반 포물선 점프
-
----
-
-<br>
-<br>
-
----
-
-# English
-
-## ZEZ — Roguelike Runner Game
-
-> A 2D side-scrolling runner built with Pygame.  
-> Run forever, dodge obstacles, defeat bosses, choose perks, and grow stronger with every clear.
-
----
-
-### Features
-
-| Feature | Description |
-|---------|-------------|
-| Infinite scroll | Background and ground loop endlessly; difficulty scales over time |
-| Double jump | A second jump is available while airborne |
-| Skill system | Collect 5 skill points, then press `J` to fire a projectile |
-| Boss rooms | Bosses appear at score thresholds; escape through the exit portal after defeating them |
-| Roguelike perks | After each boss clear, choose one of three random perks |
-| High-score save | Automatically saved to and loaded from `highscore.txt` |
-
----
-
-### Requirements
-
-- Python 3.10 or higher (developed on Python 3.12.4)
-- pygame 2.x (developed on pygame 2.6.1 / SDL 2.28.4)
-
-```bash
-pip install pygame
-```
-
----
-
-### Running the Game
-
-```bash
-# From the project root directory
-python main.py
-```
-
----
-
-### Controls
-
-| Key | Action |
-|-----|--------|
-| `Space` | Jump / Double jump |
-| `Left Ctrl` (hold) | Crouch |
-| `J` | Fire skill (requires 5 skill points) |
-| `1` / `2` / `3` | Select perk card directly |
-| `◄` / `►` + `Enter` | Browse and confirm perk cards |
-| `ESC` | Flee the boss room (no boss-clear credit) |
-| `Enter` | Restart on the Game Over screen |
-
----
-
-### Boss Room Flow
-
-```
-Score threshold reached
-        │
-        ▼
-  [ENTRY]  1-second warning + red screen flash  (boss is frozen)
-        │
-        ▼
-  [FIGHT]  Boss fires projectiles · attack with J
-        │  Boss HP reaches 0
-        ▼
-  [CLEAR]  Green exit portal scrolls in
-           → Pass through to earn boss-clear credit (+50 score)
-        │
-        ▼
-  [PERK SELECTION]  Choose one of three random perks
-        │
-        ▼
-  Normal run resumes
-```
-
-> **Pressing ESC to flee does NOT award boss-clear credit.**
-
----
-
-### Perk List (9 total)
-
-| Perk | Effect |
-|------|--------|
-| Leap Boost | Significantly increases jump height |
-| Bounce Back | Increases double-jump height |
-| Air Master | Grants one additional mid-air jump |
-| Power Surge | Doubles skill damage (stackable) |
-| Iron Shield | Absorbs 1 fatal hit |
-| Twin Shield | Absorbs 2 fatal hits |
-| Quick Charge | Reduces skill point threshold by 1 |
-| Rapid Fire | +2 concurrent skill projectile slots |
-| Score Hunter | +1 score per obstacle cleared |
-
----
-
-### Project Structure
-
-```
-ZEZ/
-├── main.py                        # Entry point, high-score management
-├── consts.py                      # Global constants
-├── highscore.txt                  # Persisted high score
-├── modules/
-│   ├── perks.py                   # Perk definitions (9 perks)
-│   ├── interface/
-│   │   └── loadres.py             # Resource loader (with fallbacks)
-│   ├── scene/
-│   │   ├── startMenu.py           # Start menu scene
-│   │   ├── gameRun.py             # Main game loop (BossPhase state machine)
-│   │   ├── perkSelect.py          # Perk selection UI scene
-│   │   └── gameOver.py            # Game over screen
-│   └── sprites/
-│       ├── role.py                # Player (state machine + perk attributes)
-│       ├── obstacle.py            # Ground and sky obstacles
-│       ├── boss.py                # Boss + boss projectiles
-│       ├── portal.py              # Exit portal (SRCALPHA pulse animation)
-│       └── floor.py               # Ground floor
-└── resources/
-    ├── background/                # bg.png
-    ├── role/                      # run_1~10.png, jump.png, crouch.png, skill.png, boss.png
-    ├── obstacles/                 # ground_0~3.png, sky_0~3.png
-    └── sound/                     # background_music.mp3, jump.wav, game_over.wav
-```
-
----
-
-### Architecture Notes
-
-- **Scene state machine**: `startMenu → gameRun ⇄ perkSelect → gameOver → (loop)`
-- **Boss state machine** (`BossPhase`): `NONE → ENTRY → FIGHT → CLEAR → NONE`
-- **Fixed-step loop**: 60 FPS via `clock.tick(FPS)`, no delta-time
-- **Inset hitboxes**: 8 px horizontal / 5 px vertical shrink for a more forgiving feel
-- **Perk system**: each perk's `apply(player)` directly mutates `Player` attributes; effects stack across boss clears within a single run
-
----
-
-### Tech Stack
-
-- **Language**: Python 3.12
-- **Framework**: Pygame 2.6.1 (SDL 2.28.4)
-- **Pattern**: OOP scene state machine
-- **Physics**: Fixed-step gravity, parabolic jump
-
----
-
-<br>
-<br>
-
----
-
-# 中文（简体）
-
-## ZEZ — 肉鸽跑酷游戏
-
-> 基于 Pygame 开发的 2D 横版跑酷游戏。  
-> 无限奔跑、躲避障碍、击败 Boss、选择天赋，在每次通关中越来越强大。
-
----
-
-### 功能特性
-
-| 功能 | 说明 |
-|------|------|
-| 无限卷轴 | 背景与地面循环滚动，难度随时间逐步提升 |
-| 二段跳 | 在空中可再跳一次 |
-| 技能系统 | 积累 5 个技能点后，按 `J` 键发射弹幕 |
-| Boss 房间 | 达到分数阈值时 Boss 登场，击败后穿越传送门逃离 |
-| 肉鸽天赋 | 每次击败 Boss 后，从 3 张随机天赋卡中选择 1 张 |
-| 最高分保存 | 自动保存并读取 `highscore.txt` |
-
----
-
-### 环境要求
-
-- Python 3.10 或更高版本（开发环境：Python 3.12.4）
-- pygame 2.x（开发环境：pygame 2.6.1 / SDL 2.28.4）
-
-```bash
-pip install pygame
-```
-
----
-
-### 运行方法
-
-```bash
-# 在项目根目录下执行
-python main.py
-```
-
----
-
-### 操作说明
+## 操作
 
 | 按键 | 动作 |
-|------|------|
-| `Space` | 跳跃 / 二段跳 |
-| `Left Ctrl`（按住） | 下蹲 |
-| `J` | 发射技能（需要 5 个技能点） |
-| `1` / `2` / `3` | 在天赋选择界面直接选牌 |
-| `◄` / `►` + `Enter` | 浏览并确认天赋卡 |
-| `ESC` | 逃离 Boss 房间（不计入击败记录） |
-| `Enter` | 在游戏结束界面重新开始 |
+| --- | --- |
+| `Enter` / `Space` | 菜单开始；结算后再跑一局 |
+| `Space` / `W` / `↑` | 跳跃；空中再次按下为二段跳 |
+| 按住 `S` / `↓` / `Ctrl` | 地面滑铲；空中首次按下快速下落 |
+| `J` / `Shift` | 能量满时发动冲刺 |
+| 按住 `K` / `X` | Boss 战中自动瞄准、连续射击 |
+| `Esc` / `P` | 游戏中暂停或继续；结算界面返回菜单 |
+| `Enter` | 暂停时继续 |
+| `M` | 开关声音 |
+| `L` | 中英文切换，需要系统中文字体 |
+| `F11` | 切换全屏 |
 
----
+屏幕按钮也支持鼠标操作，滑铲和射击按钮需要按住。窗口失去焦点会自动暂停并清除按住的动作；暂停不消耗道具、奖励或 Boss 阶段时间。
 
-### Boss 房间流程
+## 玩法与奖励
 
+沿金币弧线起跳，遇到飞行障碍按住滑铲。前段逐步引入不同障碍，随后提高速度；障碍采用有安全间距的片段。二段跳可以补救起跳时机，空中速降可以提前落地。
+
+连续拾取金币可提高金币得分，最高 **5 倍**；超过 **3 秒** 没有拾取金币，当前连击归零。达到 **30 连击** 可进入 **8 秒金币狂欢**，清除障碍并自动吸取可见金币，速度为基础速度的 **1.25 倍**。奖励触发后有冷却，避免奖励期间连续重复开启。
+
+| 道具 / 技能 | 效果 |
+| --- | --- |
+| 磁铁 | 7 秒内吸取附近金币 |
+| 护盾 | 抵挡一次碰撞，并给 0.9 秒保护 |
+| 电池 | 补充 35 点冲刺能量 |
+| 主动冲刺 | 能量达到 100 后发动，持续 3 秒；速度为基础速度的 1.55 倍，清除障碍并吸取附近金币 |
+| 冲刺 / 狂欢结束 | 恢复基础速度，留出安全距离，并给 0.8 秒保护 |
+
+金币和避开障碍都能补充能量。成绩由距离、金币得分、通过的障碍和 Boss 击破奖励组成；金币得分倍率不会放大结算时存入的钱包金币数量。
+
+每局有三个独立目标：**500 米、60 金币、2 次主动冲刺**。完成一项，结算额外获得 **25 金币**，一局最多奖励 75 金币。
+
+菜单可选择三个角色外观：
+
+| 角色 | 解锁价格 | 能力 |
+| --- | --- | --- |
+| 奶油 / Cream | 免费 | 相同 |
+| 莓莓 / Berry | 100 金币 | 相同 |
+| 星云 / Nova | 250 金币 | 相同 |
+
+![跑酷场景](docs/screenshots/run.png)
+
+## 蜂巢守卫 Boss 战
+
+首只守卫在 **350 米**后出现；如果此时仍在主动冲刺或金币狂欢，会等效果结束再入场。入场会清空普通障碍，并给 **2 秒**准备时间。战斗中里程继续增长，普通跑酷片段暂时停止生成。
+
+守卫交替发射两种能量波，攻击前会显示路径和动作提示：**低波用跳跃越过，高波用滑铲穿过**。按住 `K` / `X` 或屏幕射击按钮即可连续自动瞄准，每 0.25 秒发射一次；不必松开射击再跳跃或滑铲。
+
+| 战斗阶段 / 动作 | 规则 |
+| --- | --- |
+| 装甲预警 | 初始预警 1.35 秒，命中造成 2 点伤害 |
+| 弱点开放 | 每次发射能量波后开放 2.5 秒，命中造成 8 点伤害 |
+| 半血以下 | 下轮预警缩短为 1 秒，能量波加快；弱点期仍为 2.5 秒 |
+| 主动冲刺 | 满能量时发动，每次对守卫造成一次 25 点伤害，同时抵挡能量波 |
+| 击败守卫 | 本局获得 **50 金币、500 分、护盾和满能量** |
+
+击破后有短暂退场与安全过渡，随后恢复跑酷。下一只守卫的触发点为**本次击败时的里程 +600 米**。Boss 战中不会触发金币狂欢；击破奖励不增加金币连击。
+
+菜单中的 **Boss 练习**可直接带着护盾和满能量迎战。练习免费，击败后结束本次练习，也可立即重试；练习成绩、金币和局数不计入存档。命令行同样支持：
+
+```bash
+python main.py --scene boss
 ```
-达到分数阈值
-      │
-      ▼
- [进场 ENTRY]  1 秒警告 + 红色画面闪烁（Boss 静止）
-      │
-      ▼
- [战斗 FIGHT]  Boss 发射子弹 · 按 J 键用技能攻击
-      │  Boss HP 降至 0
-      ▼
- [通关 CLEAR]  绿色逃脱传送门从右侧滚入
-               → 穿越传送门获得击败记录 (+50 分)
-      │
-      ▼
- [天赋选择]  从 3 张随机天赋卡中选择 1 张
-      │
-      ▼
- 恢复普通跑酷
+
+![蜂巢守卫与能量波](docs/screenshots/boss.png)
+
+## 存档
+
+新版使用 `save.json`，保存最高分、最远距离、金币余额、局数、已解锁角色、当前外观、声音和语言设置。普通冒险在游戏结束、从暂停返回菜单或关闭进行中的游戏时结算，重复结算不会重复发放金币。Boss 练习不结算到存档。
+
+| 系统 | 默认位置 |
+| --- | --- |
+| macOS | `~/Library/Application Support/ZEZ/save.json` |
+| Windows | `%LOCALAPPDATA%\ZEZ\save.json`；没有该变量时使用用户目录下的 `AppData\Local\ZEZ` |
+| Linux | `$XDG_DATA_HOME/zez/save.json`；未设置时为 `~/.local/share/zez/save.json` |
+
+可用环境变量 `ZEZ_SAVE_DIR` 指定存档文件夹。建议使用绝对路径，例如：
+
+```bash
+ZEZ_SAVE_DIR="/absolute/path/to/zez-save" .venv/bin/python main.py
 ```
 
-> **按 ESC 逃跑不会增加 Boss 击败计数。**
+写入采用临时文件和原子替换；损坏存档会尽量保留 `.corrupt-…` 备份，并用默认数据启动。写入失败会在界面提示，本次数据保留在内存中。新版计分规则已改变，旧 `highscore.txt` 不会自动导入。
 
----
+## 开发与测试
 
-### 天赋列表（共 9 种）
-
-| 天赋 | 效果 |
-|------|------|
-| 强化跃升 | 大幅提升跳跃高度 |
-| 强化二段跳 | 提升二段跳高度 |
-| 空中大师 | 在空中额外多跳一次 |
-| 能量涌动 | 技能伤害翻倍（可叠加） |
-| 钢铁护盾 | 抵挡 1 次致命伤害 |
-| 双层护盾 | 抵挡 2 次致命伤害 |
-| 急速充能 | 技能点需求减少 1 |
-| 连续射击 | 同时技能弹槽 +2 |
-| 分数猎人 | 每通过一个障碍额外得 1 分 |
-
----
-
-### 项目结构
-
-```
+```text
 ZEZ/
-├── main.py                        # 入口，管理最高分
-├── consts.py                      # 全局常量
-├── highscore.txt                  # 最高分存档
-├── modules/
-│   ├── perks.py                   # 天赋定义（9 种）
-│   ├── interface/
-│   │   └── loadres.py             # 资源加载器（含异常回退）
-│   ├── scene/
-│   │   ├── startMenu.py           # 开始菜单
-│   │   ├── gameRun.py             # 主游戏循环（BossPhase 状态机）
-│   │   ├── perkSelect.py          # 天赋选择 UI 场景
-│   │   └── gameOver.py            # 游戏结束界面
-│   └── sprites/
-│       ├── role.py                # 玩家（状态机 + 天赋属性）
-│       ├── obstacle.py            # 地面与空中障碍物
-│       ├── boss.py                # Boss 及其弹幕
-│       ├── portal.py              # 逃脱传送门（SRCALPHA 脉冲动画）
-│       └── floor.py               # 地板
-└── resources/
-    ├── background/                # bg.png
-    ├── role/                      # run_1~10.png, jump.png, crouch.png, skill.png, boss.png
-    ├── obstacles/                 # ground_0~3.png, sky_0~3.png
-    └── sound/                     # background_music.mp3, jump.wav, game_over.wav
+├── main.py              # 命令行入口，可从任意工作目录启动
+├── play.command         # macOS 启动与首次依赖安装
+├── play.bat             # Windows 启动与首次依赖安装
+├── requirements.txt
+├── runner/
+│   ├── model.py         # 跑酷与 Boss 规则、120Hz 固定步长、随机种子
+│   ├── app.py           # 窗口、输入、菜单、HUD 与场景绘制
+│   ├── assets.py        # 素材缓存、字体、音效与合成背景音乐
+│   └── storage.py       # 存档校验、原子写入与角色解锁
+├── assets/              # Kenney PNG/OGG、许可证与来源清单
+├── docs/screenshots/    # 菜单、跑酷与 Boss 预览
+└── tests/               # 跑酷、Boss、输入与存档自动测试
 ```
 
----
+在本目录使用已安装依赖的 Python 运行：
 
-### 架构说明
+```bash
+python -m unittest discover -s tests -v
+python main.py --headless --scene menu --frames 5
+python main.py --headless --scene run --frames 120 --seed 42
+python main.py --headless --scene boss --frames 240 --seed 42
+python main.py --headless --scene pause --frames 5
+python main.py --headless --scene over --frames 5
+```
 
-- **场景状态机**：`startMenu → gameRun ⇄ perkSelect → gameOver → （循环）`
-- **Boss 状态机**（`BossPhase`）：`NONE → ENTRY → FIGHT → CLEAR → NONE`
-- **固定步长循环**：60 FPS，通过 `clock.tick(FPS)` 实现
-- **内缩碰撞箱**：水平 8px / 垂直 5px 内缩，提供更宽松的判定手感
-- **天赋系统**：每张天赋的 `apply(player)` 直接修改 `Player` 属性，效果可在单次游玩内跨 Boss 叠加
+`--headless` 使用 SDL 的虚拟显示与音频驱动，不读取或写入玩家存档；可追加 `--screenshot /path/to/frame.png` 保存最后一帧。`--seed` 用于复现同一随机序列，`--frames` 指定退出前绘制的帧数。
 
----
+仓库的 [GitHub Actions](https://github.com/Majino12/game/actions) 在 Linux、Python 3.9 和 3.12 上安装依赖，运行单元测试，并对菜单、跑酷、Boss、暂停、结算五个场景做无窗口渲染检查。Boss 场景另运行 240 帧，覆盖入场后的预警与攻击画面。自动模拟用于检查逻辑和障碍可通过性，实际手感仍可通过游玩继续调整。Windows 提供启动脚本，未在此次 macOS 开发环境中进行 Windows 实机验证。
 
-### 技术栈
+## 素材与旧版本
 
-- **语言**：Python 3.12
-- **框架**：Pygame 2.6.1（SDL 2.28.4）
-- **架构**：面向对象场景状态机
-- **物理**：固定步长重力，抛物线跳跃
+本次重新下载并选用了 [Kenney New Platformer Pack](https://kenney.nl/assets/new-platformer-pack) 的 **103 个图片及音效文件**，使用 **CC0 1.0** 授权。保留了 [官方许可证](assets/KENNEY_LICENSE.txt)、[来源说明](assets/ASSETS.txt) 和包含逐文件 SHA-256 的 [manifest.json](assets/manifest.json)。
 
----
+背景音乐由 [`runner/assets.py`](runner/assets.py) 的 `create_music()` 生成，是本项目编写的合成循环，无需额外下载音乐。运行游戏不需要访问素材网站。
 
-<br>
+蜂巢守卫使用现有蜜蜂素材和程序绘制的机械环、弱点及能量波，无需另外下载素材。当前 Boss 战与跑酷、连击和冲刺共用同一套游戏规则；旧版战斗、传送门与随机天赋实现保留在仓库 Git 历史中。
 
----
+## English
 
-*ZEZ — Made with Pygame*
+**ZEZ: Cloud Dash** is an endless runner for Python 3.9+ and Pygame CE. Jump twice, slide under flying obstacles, collect coins, use magnets and shields, and spend full energy on a three-second dash. A 30-coin combo can activate an eight-second bonus with automatic coin collection. Complete three run goals for extra coins and unlock two cosmetic runners; all three characters have identical abilities.
+
+The Hive Guardian first appears after 350 metres. Jump over low waves, slide under high waves, and hold `K/X` for automatic aimed fire. Each attack exposes a weak point for 2.5 seconds with four times the normal shot damage. A dash damages the boss once; below half health its attacks become faster. Defeat it for 50 coins, 500 score, a shield and full energy, then run another 600 metres from the defeat location to reach the next encounter. Menu Boss Practice (or `--scene boss`) starts with a shield and full energy, ends after a victory, and does not add coins, records or runs to the save.
+
+Double-click `play.command` on macOS or `play.bat` on Windows. The launcher creates a local virtual environment and installs dependencies on the first launch; subsequent launches work offline. Manual commands and save locations are listed above. `Space/W/↑`: jump; `S/↓/Ctrl`: slide or fast fall; `J/Shift`: dash; hold `K/X`: fire during a boss fight; `Esc/P`: pause; `M`: sound; `L`: language; `F11`: fullscreen.
+
+Saves are stored in the user's application-data directory, independently of the working directory. Set `ZEZ_SAVE_DIR` to override it. The 103 bundled Kenney art/audio files are CC0 and recorded in the asset manifest; music is synthesized by the game. CI covers Python 3.9/3.12 on Linux and headless rendering; Windows launcher support has not been verified on a Windows machine during this update.
