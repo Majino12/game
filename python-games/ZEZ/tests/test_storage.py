@@ -32,7 +32,7 @@ class SaveTests(unittest.TestCase):
                             muted=True, language="en")
         self.assertTrue(save_data(original, self.path))
         self.assertEqual(load_save(self.path), original)
-        self.assertEqual(json.loads(self.path.read_text())["version"], 1)
+        self.assertEqual(json.loads(self.path.read_text())["version"], 2)
         self.assertEqual(list(self.path.parent.glob("*.tmp")), [])
 
     def test_broken_json_is_preserved_and_backed_up(self):
@@ -47,7 +47,7 @@ class SaveTests(unittest.TestCase):
     def test_invalid_values_are_rejected(self):
         for payload in ({"best_score": True}, {"total_coins": -3},
                         {"runs": "5"}, {"best_distance": 1.2},
-                        {"version": True}, {"version": 2},
+                        {"version": True}, {"version": 3},
                         {"unlocked": ["injected"]}, {"muted": 1},
                         {"selected": []}, {"language": []}, []):
             with self.subTest(payload=payload):

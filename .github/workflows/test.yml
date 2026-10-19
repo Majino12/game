@@ -37,11 +37,11 @@ jobs:
           cache-dependency-path: python-games/ZEZ/requirements.txt
       - name: Install game dependency
         run: python -m pip install -r requirements.txt
-      - name: Test running, boss combat, input and persistence
+      - name: Test running, boss combat, progression, input and persistence
         run: python -m unittest discover -s tests -v
       - name: Render every scene without a display
         run: |
-          for scene in menu run boss pause over; do
+          for scene in menu run boss pause over workshop contracts perks changelog; do
             python main.py --headless --scene "$scene" --frames 5 --seed 42 --screenshot "$RUNNER_TEMP/zez-$scene.png"
           done
       - name: Render boss combat after its entrance

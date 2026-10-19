@@ -3,18 +3,29 @@
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import shutil
 import sys
 import tempfile
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 
 costs = {"beige": 0, "pink": 100, "purple": 250}
 COSTS = costs
-SAVE_VERSION = 1
+SAVE_VERSION = 2
+UPGRADE_KEYS = ("magnet", "recharge", "dash")
+UPGRADE_PRICES = (80, 160, 280)
+# Larger values cannot be reached in ordinary play. Keep malformed JSON and
+# runaway input from creating infinities or unbounded reward calculations.
+MAX_PROGRESS = 10 ** 12
+CONTRACTS = (
+    ("distance", "远征足迹", "Expedition Distance", 1500, 40),
+    ("coins", "金币收藏家", "Coin Collector", 250, 50),
+    ("bosses", "守卫克星", "Guardian Hunter", 3, 100),
+)
 PathLike = Union[str, os.PathLike]
 
 
@@ -28,6 +39,46 @@ class SaveData:
     unlocked: List[str] = field(default_factory=lambda: ["beige"])
     muted: bool = False
     language: str = "zh"
+    upgrades: Dict[str, int] = field(default_factory=lambda: dict.fromkeys(UPGRADE_KEYS, 0))
+    career_distance: float = 0.0
+    career_coins: int = 0
+    career_bosses: int = 0
+    contract_claims: Dict[str, int] = field(default_factory=lambda: {
+        "distance": 0, "coins": 0, "bosses": 0,
+    })
+
+
+def _upgrade_levels(value: object) -> Dict[str, int]:
+    source = value if isinstance(value, dict) else {}
+    return {key: source[key] if type(source.get(key)) is int
+            and 0 <= source[key] <= len(UPGRADE_PRICES) else 0
+            for key in UPGRADE_KEYS}
+
+
+def _progress_value(value: object, fractional: bool = False):
+    allowed = (int, float) if fractional else (int,)
+    if (type(value) not in allowed or value < 0 or value > MAX_PROGRESS
+            or not math.isfinite(value)):
+        return 0.0 if fractional else 0
+    return float(value) if fractional else value
+
+
+def _progress_totals(data: SaveData) -> dict:
+    return {
+        "distance": _progress_value(data.career_distance, fractional=True),
+        "coins": _progress_value(data.career_coins),
+        "bosses": _progress_value(data.career_bosses),
+    }
+
+
+def _claims(value: object, totals: dict) -> Dict[str, int]:
+    source = value if isinstance(value, dict) else {}
+    result = {}
+    for key, _, _, step, _ in CONTRACTS:
+        claimed = source.get(key, 0)
+        result[key] = (min(claimed, int(totals[key] // step))
+                       if type(claimed) is int and claimed >= 0 else 0)
+    return result
 
 
 def save_path() -> Path:
@@ -47,8 +98,8 @@ def save_path() -> Path:
 def _validated(payload: object) -> SaveData:
     if not isinstance(payload, dict):
         raise ValueError("Save must be a JSON object")
-    version = payload.get("version", SAVE_VERSION)
-    if type(version) is not int or version != SAVE_VERSION:
+    version = payload.get("version", 1)
+    if type(version) is not int or version not in (1, SAVE_VERSION):
         raise ValueError("Unsupported save version")
     result = SaveData()
     for name in ("best_score", "best_distance", "total_coins", "runs"):
@@ -71,6 +122,13 @@ def _validated(payload: object) -> SaveData:
     result.language = payload.get("language", "zh")
     if result.language not in ("zh", "en"):
         raise ValueError("Invalid language setting")
+    # New progression data is repaired independently, so a damaged upgrade
+    # entry never discards the player's older wallet or unlocked characters.
+    result.upgrades = _upgrade_levels(payload.get("upgrades"))
+    result.career_distance = _progress_value(payload.get("career_distance", 0), fractional=True)
+    result.career_coins = _progress_value(payload.get("career_coins", 0))
+    result.career_bosses = _progress_value(payload.get("career_bosses", 0))
+    result.contract_claims = _claims(payload.get("contract_claims"), _progress_totals(result))
     return result
 
 
@@ -112,7 +170,7 @@ def save_data(data: SaveData, path: Optional[PathLike] = None) -> bool:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=str(target.parent),
                                          prefix="." + target.name + ".", suffix=".tmp", delete=False) as stream:
             temporary = Path(stream.name)
-            json.dump(payload, stream, ensure_ascii=False, indent=2)
+            json.dump(payload, stream, ensure_ascii=False, indent=2, allow_nan=False)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
@@ -143,3 +201,75 @@ def purchase(data: SaveData, color: str) -> bool:
     data.unlocked.append(color)
     data.selected = color
     return True
+
+
+def upgrade_price(data: SaveData, key: str) -> Optional[int]:
+    """Return the next workshop price, or None for unknown or maxed upgrades."""
+    if type(key) is not str or key not in UPGRADE_KEYS:
+        return None
+    level = _upgrade_levels(data.upgrades)[key]
+    return UPGRADE_PRICES[level] if level < len(UPGRADE_PRICES) else None
+
+
+def buy_upgrade(data: SaveData, key: str) -> bool:
+    """Buy one level in memory; the caller decides when to persist the save."""
+    price = upgrade_price(data, key)
+    if (price is None or type(data.total_coins) is not int
+            or data.total_coins < price):
+        return False
+    levels = _upgrade_levels(data.upgrades)
+    levels[key] += 1
+    data.total_coins -= price
+    data.upgrades = levels
+    return True
+
+
+def contract_status(data: SaveData) -> List[dict]:
+    """Describe the next cumulative milestone for each expedition contract."""
+    totals = _progress_totals(data)
+    claimed = _claims(data.contract_claims, totals)
+    return [{"key": key, "title": title, "title_en": title_en,
+             "target": (claimed[key] + 1) * step, "progress": totals[key],
+             "level": claimed[key], "reward": reward}
+            for key, title, title_en, step, reward in CONTRACTS]
+
+
+def record_progress(data: SaveData, distance, coins, bosses) -> dict:
+    """Record one settled run and credit only newly earned contract rewards.
+
+    Run coins, best records, and run count belong to the caller's settlement.
+    Calling this again with another run advances progress again; settlement
+    idempotency is the caller's responsibility. Invalid inputs contribute zero.
+    "completed" has one entry per contract, with "levels" aggregating all
+    milestones earned in this run rather than allocating one item per level.
+    """
+    gains = {"distance": _progress_value(distance, fractional=True),
+             "coins": _progress_value(coins), "bosses": _progress_value(bosses)}
+    totals = _progress_totals(data)
+    claimed = _claims(data.contract_claims, totals)
+    for key in totals:
+        previous = totals[key]
+        totals[key] = min(MAX_PROGRESS, previous + gains[key])
+        gains[key] = totals[key] - previous
+    completed = []
+    bonus = 0
+    for key, title, title_en, step, reward in CONTRACTS:
+        earned_level = int(totals[key] // step)
+        levels = max(0, earned_level - claimed[key])
+        if levels:
+            awarded = levels * reward
+            bonus += awarded
+            completed.append({"key": key, "title": title, "title_en": title_en,
+                              "levels": levels, "level": earned_level,
+                              "reward": reward, "bonus": awarded})
+            claimed[key] = earned_level
+    data.career_distance = float(totals["distance"])
+    data.career_coins = totals["coins"]
+    data.career_bosses = totals["bosses"]
+    data.contract_claims = claimed
+    # Persisted wallets have already passed strict integer validation. Also
+    # tolerate a malformed in-memory value without accepting bool as currency.
+    wallet = data.total_coins if type(data.total_coins) is int and data.total_coins >= 0 else 0
+    data.total_coins = wallet + bonus
+    return {"bonus": bonus, "completed": completed,
+            "completed_levels": sum(item["levels"] for item in completed), **gains}

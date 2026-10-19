@@ -199,6 +199,88 @@ class AppTests(unittest.TestCase):
         self.app.update(.1)
         self.assertFalse(any(p.kind == "shot" for p in self.app.run.projectiles))
 
+    def test_workshop_purchase_changes_next_adventure_but_not_practice(self):
+        self.app.data.total_coins = 80
+        self.app.draw()
+        self.click_button('workshop')
+        self.app.draw()
+        self.click_button('upgrade:dash')
+        self.assertEqual(self.app.data.total_coins, 0)
+        self.assertEqual(self.app.data.upgrades['dash'], 1)
+        self.key_down(pygame.K_ESCAPE)
+        self.app.start()
+        self.app.run.energy = 100
+        self.app.action('dash')
+        self.assertAlmostEqual(self.app.run.dash_timer, 3.35)
+        self.app.start(practice=True)
+        self.app.action('dash')
+        self.assertAlmostEqual(self.app.run.dash_timer, 3.0)
+
+    def test_contract_bonus_is_banked_once_and_practice_does_not_progress(self):
+        self.app.start()
+        run = self.app.run
+        run.distance, run.coins, run.boss_defeated = 1500, 250, 3
+        self.app.action('pause')
+        self.app.action('menu')
+        self.assertEqual(self.app.contract_reward, 190)
+        self.assertEqual(self.app.data.total_coins, 490)
+        self.assertEqual(self.app.data.career_bosses, 3)
+        self.app.settle()
+        self.assertEqual(self.app.data.total_coins, 490)
+        self.app.start(practice=True)
+        self.app.run.distance, self.app.run.coins, self.app.run.boss_defeated = 9000, 900, 9
+        self.app.settle()
+        self.assertEqual(self.app.data.career_distance, 1500)
+        self.assertEqual(self.app.data.career_coins, 250)
+        self.assertEqual(self.app.data.career_bosses, 3)
+
+    def test_actual_boss_victory_opens_frozen_perk_choice_and_keyboard_resumes(self):
+        self.app.start()
+        self.app.run.distance = 350
+        self.app.update(.1)
+        self.app.run.boss.phase = 'weak'
+        self.app.run._damage_boss(1000)
+        self.key_down(pygame.K_k)
+        for _ in range(30):
+            self.app.update(.1)
+        self.assertEqual(self.app.scene, 'perks')
+        self.assertEqual(len(self.app.run.perk_choices), 3)
+        self.assertFalse(self.app.fire_keys)
+        before = self.app.run.time
+        self.app.update(.1)
+        self.assertEqual(self.app.run.time, before)
+        selected = self.app.run.perk_choices[0]
+        self.key_down(pygame.K_1)
+        self.assertEqual(self.app.scene, 'run')
+        self.assertEqual(self.app.run.perks[selected], 1)
+        self.app.update(.1)
+        self.assertGreater(self.app.run.time, before)
+        self.app.start()
+        self.assertFalse(any(self.app.run.perks.values()))
+
+    def test_leaving_perk_selection_banks_run_without_double_rewards(self):
+        self.app.start()
+        self.app.run.coins = 12
+        self.app.run.perk_choices = ['wing', 'focus', 'magnet']
+        self.app.update(.1)
+        self.assertEqual(self.app.scene, 'perks')
+        self.key_down(pygame.K_ESCAPE)
+        self.assertEqual(self.app.scene, 'menu')
+        self.assertEqual(self.app.data.total_coins, 12)
+        self.assertEqual(self.app.data.runs, 1)
+        self.app.action('menu')
+        self.assertEqual(self.app.data.total_coins, 12)
+
+    def test_window_close_during_perk_choice_banks_progress(self):
+        self.app.start()
+        self.app.run.coins = 9
+        self.app.run.perk_choices = ['wing']
+        self.app.update(.1)
+        self.send(pygame.QUIT)
+        self.assertFalse(self.app.running)
+        self.assertEqual(self.app.data.total_coins, 9)
+        self.assertEqual(self.app.data.runs, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

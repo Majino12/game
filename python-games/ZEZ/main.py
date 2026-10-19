@@ -7,7 +7,8 @@ def main():
     parser = argparse.ArgumentParser(description='ZEZ · Cloud Dash / 云端冲刺')
     parser.add_argument('--headless', action='store_true', help='Use SDL dummy video/audio; never write a save')
     parser.add_argument('--frames', type=int, default=0, help='Exit after N rendered frames')
-    parser.add_argument('--scene', choices=['menu', 'run', 'pause', 'over', 'boss'], default='menu')
+    parser.add_argument('--scene', choices=['menu', 'run', 'pause', 'over', 'boss',
+                                          'workshop', 'contracts', 'perks', 'changelog'], default='menu')
     parser.add_argument('--seed', type=int, help='Deterministic course seed')
     parser.add_argument('--screenshot', help='Save the last 1280x720 frame as PNG')
     args = parser.parse_args()

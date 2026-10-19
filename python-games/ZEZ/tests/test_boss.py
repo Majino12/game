@@ -9,7 +9,9 @@ from runner.model import (
 
 
 def isolated_run(seed=17, bosses=True):
-    run = Run(seed=seed, bosses=bosses)
+    # Combat/practice tests continue immediately after the victory animation.
+    # Reward selection and its pause are covered separately in test_perks.
+    run = Run(seed=seed, bosses=bosses, rewards=False)
     run.entities.clear()
     run._spawn_timer = 100000.0
     return run
@@ -286,6 +288,10 @@ class BossVictoryTests(unittest.TestCase):
         self.assertIsNot(run.boss, first_boss)
         self.assertEqual(run.boss.phase, "warning")
         self.assertEqual(run.boss.hp, run.boss.max_hp)
+        self.assertEqual(run.boss.index, 2)
+        self.assertEqual(run.boss.kind, "storm")
+        self.assertEqual(run.boss.max_hp, 180)
+        self.assertEqual(run.boss.attack, "high")
         self.assertEqual(run.boss_defeated, 1)
         self.assertGreaterEqual(run.distance, next_distance)
 
@@ -307,6 +313,54 @@ class BossVictoryTests(unittest.TestCase):
             self.assertEqual(actual.boss, reference.boss)
             self.assertEqual(actual.projectiles, reference.projectiles)
             self.assertEqual(events, reference_events)
+
+
+class BossVarietyTests(unittest.TestCase):
+    def test_successive_bosses_alternate_and_health_growth_is_capped(self):
+        run = isolated_run()
+        expected = [("bee", 160), ("storm", 180), ("bee", 200), ("storm", 220),
+                    ("bee", 240), ("storm", 240), ("bee", 240)]
+        for index, (kind, hp) in enumerate(expected, 1):
+            with self.subTest(index=index):
+                run.distance = run.next_boss_distance
+                run.update(FIXED_STEP)
+                self.assertEqual((run.boss.kind, run.boss.index, run.boss.hp), (kind, index, hp))
+                self.assertEqual(run.boss.max_hp, hp)
+                advance(run, 2)
+                run.boss.hp = 2
+                run.projectiles.append(Projectile("shot", run.boss.x, run.boss.y))
+                run.update(FIXED_STEP)
+                self.assertEqual(run.boss.phase, "defeated")
+                advance(run, 2.5)
+                self.assertIsNone(run.boss)
+                self.assertEqual(run.perk_choices, [])
+                self.assertEqual(run.boss_defeated, index)
+                self.assertEqual(run.coins, index * 50)
+
+    def test_storm_has_readable_sequence_and_keeps_recovery_time(self):
+        run = isolated_run()
+        run.boss_defeated = 1
+        run.next_boss_distance = 0
+        run.update(FIXED_STEP)
+        self.assertEqual(run.boss.kind, "storm")
+        advance(run, 2)
+        self.assertEqual(run.boss.attack, "high")
+        attacks = []
+        warnings = []
+        previous_phase = "warning"
+        for _ in range(20 * 120):
+            if run.boss.phase == "fight" and previous_phase != "fight":
+                warnings.append(run.boss.telegraph)
+            previous_phase = run.boss.phase
+            dodge_waves(run)
+            run.update(FIXED_STEP)
+            if any(event[0] == "boss_attack" for event in run.events):
+                attacks.append((run.boss.attack, run.time))
+            self.assertTrue(run.alive)
+            self.assertFalse(run.shield)
+        self.assertEqual([kind for kind, _ in attacks[:5]], ["high", "low", "low", "high", "high"])
+        self.assertTrue(all(warning >= 1 for warning in warnings))
+        self.assertTrue(all(later[1] - earlier[1] >= 3.5 for earlier, later in zip(attacks, attacks[1:])))
 
 
 if __name__ == "__main__":

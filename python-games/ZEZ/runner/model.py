@@ -9,7 +9,7 @@ Input-generated sound events are delivered by the following ``update``.
 from dataclasses import dataclass
 import math
 import random
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 WIDTH = 1280
@@ -25,6 +25,23 @@ DOUBLE_JUMP_VELOCITY = -720.0
 FIXED_STEP = 1.0 / 120.0
 OBSTACLES = frozenset(("crate", "spike", "drone"))
 POWERUPS = frozenset(("magnet", "shield", "battery"))
+PERKS = {
+    "wing": {"name": "轻翼", "desc": "本局增加一次空中跳跃", "name_en": "Light Wings",
+             "desc_en": "Gain one extra air jump this run", "max_level": 1},
+    "focus": {"name": "弱点专注", "desc": "弱点命中伤害每级 +2", "name_en": "Focus",
+              "desc_en": "Weak-point damage +2 per level", "max_level": 3},
+    "capacitor": {"name": "充能核心", "desc": "每枚金币的能量回复每级 +1", "name_en": "Capacitor",
+                  "desc_en": "Energy per coin +1 per level", "max_level": 3},
+    "tempo": {"name": "疾速连射", "desc": "射击间隔每级缩短 0.03 秒", "name_en": "Rapid Rhythm",
+              "desc_en": "Shot cooldown -0.03 seconds per level", "max_level": 3},
+    "magnet": {"name": "磁力扩展", "desc": "磁铁与冲刺吸币范围每级 +100", "name_en": "Magnetic Reach",
+               "desc_en": "Magnet and dash attraction +100 px per level", "max_level": 3},
+    "combo": {"name": "连击节拍", "desc": "连击保留时间每级 +1 秒", "name_en": "Combo Flow",
+              "desc_en": "Combo timeout +1 second per level", "max_level": 3},
+    # Level zero marks a repeatable fallback, never an upgradeable perk.
+    "supply": {"name": "补给箱", "desc": "获得 40 金币，并补满磁铁时间", "name_en": "Supply Cache",
+               "desc_en": "Gain 40 coins and refresh your magnet", "max_level": 0},
+}
 
 Rect = Tuple[float, float, float, float]
 Event = Tuple[str, float, float]
@@ -74,6 +91,9 @@ class Boss:
     telegraph: float = 0.0
     attack: str = "low"
     enraged: bool = False
+    kind: str = "bee"
+    index: int = 1
+    attack_index: int = 0
 
     @property
     def rect(self) -> Rect:
@@ -98,8 +118,16 @@ class Projectile:
 class Run:
     """One run. Create a new instance to restart without carrying timers over."""
 
-    def __init__(self, seed: Optional[int] = None, bosses: bool = True):
+    def __init__(self, seed: Optional[int] = None, bosses: bool = True,
+                 upgrades: Optional[Dict[str, int]] = None, rewards: bool = True):
         self.rng = random.Random(seed)
+        source = upgrades if isinstance(upgrades, dict) else {}
+        self.upgrades = {key: min(3, max(0, source.get(key, 0)))
+                         if type(source.get(key, 0)) is int else 0
+                         for key in ("magnet", "recharge", "dash")}
+        self.rewards_enabled = bool(rewards)
+        self.perks = {key: 0 for key, info in PERKS.items() if info["max_level"] > 0}
+        self.perk_choices: List[str] = []
         self.time = 0.0
         self.distance = 0.0
         self.speed = 350.0
@@ -162,6 +190,66 @@ class Run:
     def multiplier(self) -> int:
         return min(5, 1 + self.combo // 10)
 
+    @property
+    def max_jumps(self) -> int:
+        return 2 + self.perks["wing"]
+
+    @property
+    def magnet_duration(self) -> float:
+        return 7.0 + 2.0 * self.upgrades["magnet"]
+
+    @property
+    def coin_energy(self) -> float:
+        return 3.0 + 0.5 * self.upgrades["recharge"] + self.perks["capacitor"]
+
+    @property
+    def dash_duration(self) -> float:
+        return 3.0 + 0.35 * self.upgrades["dash"]
+
+    @property
+    def fire_interval(self) -> float:
+        return 0.25 - 0.03 * self.perks["tempo"]
+
+    @property
+    def magnet_radius(self) -> float:
+        return 310.0 + 100.0 * self.perks["magnet"]
+
+    @property
+    def combo_window(self) -> float:
+        return 3.0 + self.perks["combo"]
+
+    def choose_perk(self, key: str) -> bool:
+        """Apply one offered reward; an invalid or repeated choice does nothing."""
+        if not self.alive or not isinstance(key, str) or key not in self.perk_choices:
+            return False
+        if key == "supply":
+            self.coins += 40
+            self.magnet = max(self.magnet, self.magnet_duration)
+        elif key in self.perks and self.perks[key] < PERKS[key]["max_level"]:
+            self.perks[key] += 1
+        else:
+            return False
+        self.perk_choices.clear()
+        self._release_inputs()
+        self._accumulator = 0.0
+        self.invulnerable = max(self.invulnerable, 1.2)
+        self._spawn_timer = max(self._spawn_timer, 2.0)
+        self._emit("perk_chosen", pending=True)
+        return True
+
+    def _release_inputs(self) -> None:
+        self._slide_held = False
+        self._fire_held = False
+        self._jump_buffer = 0.0
+        self.sliding = False
+
+    def _offer_perks(self) -> None:
+        available = [key for key in self.perks if self.perks[key] < PERKS[key]["max_level"]]
+        self.perk_choices = (self.rng.sample(available, min(3, len(available)))
+                             if available else ["supply"])
+        self._release_inputs()
+        self._emit("perk_ready")
+
     def _emit(self, name: str, x: Optional[float] = None,
               y: Optional[float] = None, pending: bool = False) -> None:
         event = (name, float(PLAYER_X + PLAYER_WIDTH / 2 if x is None else x),
@@ -170,9 +258,9 @@ class Run:
 
     def jump(self) -> bool:
         """Jump or double jump. A late third press is buffered for landing."""
-        if not self.alive:
+        if not self.alive or self.perk_choices:
             return False
-        if self.jumps >= 2:
+        if self.jumps >= self.max_jumps:
             self._jump_buffer = 0.10
             return False
         self.player_vy = JUMP_VELOCITY if self.jumps == 0 else DOUBLE_JUMP_VELOCITY
@@ -184,21 +272,21 @@ class Run:
 
     def set_slide(self, held: bool) -> None:
         """Hold to slide; pressing in the air accelerates the descent."""
+        if not self.alive or self.perk_choices:
+            return
         newly_pressed = bool(held) and not self._slide_held
         self._slide_held = bool(held)
-        if not self.alive:
-            return
         if self.jumps == 0 and self.player_y >= GROUND:
             self.sliding = self._slide_held
         elif newly_pressed:
             self.player_vy = max(self.player_vy, 900.0)
 
     def dash(self) -> bool:
-        """Spend a full energy bar for three seconds of protected running."""
-        if not self.alive or self.energy < 100.0 or self.is_dashing:
+        """Spend a full energy bar for a workshop-adjusted protected dash."""
+        if not self.alive or self.perk_choices or self.energy < 100.0 or self.is_dashing:
             return False
         self.energy = 0.0
-        self.dash_timer = 3.0
+        self.dash_timer = self.dash_duration
         self.dash_count += 1
         self._clear_obstacles()
         self._emit("dash", pending=True)
@@ -207,6 +295,8 @@ class Run:
 
     def set_fire(self, held: bool) -> None:
         """Hold to fire automatically when a boss is ready to fight."""
+        if not self.alive or self.perk_choices:
+            return
         self._fire_held = bool(held)
 
     def fire(self) -> bool:
@@ -215,7 +305,7 @@ class Run:
 
     def _fire(self, pending: bool = False) -> bool:
         boss = self.boss
-        if (not self.alive or boss is None or boss.phase not in ("fight", "weak")
+        if (not self.alive or self.perk_choices or boss is None or boss.phase not in ("fight", "weak")
                 or self._fire_cooldown > 0.0):
             return False
         x = float(PLAYER_X + PLAYER_WIDTH + 4)
@@ -224,7 +314,7 @@ class Run:
         length = max(1.0, math.hypot(dx, dy))
         self.projectiles.append(Projectile("shot", x, y - 5.0, 20.0, 10.0,
                                            dx / length * 1000.0, dy / length * 1000.0))
-        self._fire_cooldown = 0.25
+        self._fire_cooldown = self.fire_interval
         self._emit("shot", x, y, pending=pending)
         return True
 
@@ -233,13 +323,13 @@ class Run:
         self.events.clear()
         self.events.extend(self._pending_events)
         self._pending_events.clear()
-        if not self.alive or not math.isfinite(dt) or dt <= 0.0:
+        if not self.alive or self.perk_choices or not math.isfinite(dt) or dt <= 0.0:
             return
         self._accumulator += min(float(dt), 0.1)
-        while self._accumulator + 1e-12 >= FIXED_STEP and self.alive:
+        while self._accumulator + 1e-12 >= FIXED_STEP and self.alive and not self.perk_choices:
             self._accumulator -= FIXED_STEP
             self._step(FIXED_STEP)
-        if not self.alive:
+        if not self.alive or self.perk_choices:
             self._accumulator = 0.0
 
     def _step(self, dt: float) -> None:
@@ -265,7 +355,7 @@ class Run:
             self._spawn_timer = max(self._spawn_timer, 1.2)
 
         self._since_coin += dt
-        if self._since_coin > 3.0 and self.combo:
+        if self._since_coin > self.combo_window and self.combo:
             self.combo = 0
             self._next_bonus_combo = 30
 
@@ -296,6 +386,10 @@ class Run:
             if self._spawn_timer <= 0.0:
                 self._spawn_pattern()
                 self._spawn_timer += self.rng.uniform(2.45, 2.95)
+
+        if self.perk_choices:
+            self.score = int(self.distance * 5.0) + self._score_points
+            return
 
         self._fire_cooldown = _decay(self._fire_cooldown, dt)
         self._dash_boss()
@@ -351,7 +445,11 @@ class Run:
         if (not self.bosses_enabled or self.boss is not None or not self.alive
                 or self.distance < self.next_boss_distance or self.is_dashing):
             return False
-        self.boss = Boss()
+        index = self.boss_defeated + 1
+        kind = "bee" if index % 2 else "storm"
+        hp = min(240, 160 + (index - 1) * 20)
+        self.boss = Boss(hp=hp, max_hp=hp, kind=kind, index=index,
+                         attack="low" if kind == "bee" else "high")
         self._clear_obstacles()
         self.projectiles.clear()
         self._fire_cooldown = 0.0
@@ -379,7 +477,11 @@ class Run:
                 boss.telegraph = 0.0
         elif boss.phase == "weak":
             if boss.timer == 0.0:
-                boss.attack = "high" if boss.attack == "low" else "low"
+                boss.attack_index += 1
+                if boss.kind == "storm":
+                    boss.attack = ("high", "low", "low", "high")[boss.attack_index % 4]
+                else:
+                    boss.attack = "high" if boss.attack == "low" else "low"
                 boss.phase = "fight"
                 boss.timer = 1.0 if boss.enraged else 1.35
                 boss.telegraph = boss.timer
@@ -389,6 +491,8 @@ class Run:
             self._spawn_timer = 2.0
             self._last_obstacle_world_x = self.distance * 25.0 - 1000.0
             self.invulnerable = max(self.invulnerable, 1.0)
+            if self.rewards_enabled:
+                self._offer_perks()
 
     def _boss_attack(self) -> None:
         boss = self.boss
@@ -463,7 +567,7 @@ class Run:
                 if boss is None or boss.phase not in ("fight", "weak"):
                     continue
                 if _overlap(projectile.rect, boss.rect):
-                    self._damage_boss(8 if boss.phase == "weak" else 2)
+                    self._damage_boss(8 + 2 * self.perks["focus"] if boss.phase == "weak" else 2)
                     continue
             else:
                 if boss is not None and boss.phase == "defeated":
@@ -491,7 +595,8 @@ class Run:
         dx, dy = px - cx, py - cy
         distance = math.hypot(dx, dy)
         bonus_reach = self.is_bonus and coin.x < WIDTH + 100
-        if not bonus_reach and not ((self.magnet > 0.0 or self.dash_timer > 0.0) and distance < 310.0):
+        if not bonus_reach and not ((self.magnet > 0.0 or self.dash_timer > 0.0)
+                                   and distance < self.magnet_radius):
             return
         rate = 1500.0 if bonus_reach else 850.0
         if distance > 0.0:
@@ -505,7 +610,7 @@ class Run:
         self.combo += 1
         self.best_combo = max(self.best_combo, self.combo)
         self._since_coin = 0.0
-        self.energy = min(100.0, self.energy + 3.0)
+        self.energy = min(100.0, self.energy + self.coin_energy)
         self._score_points += 10 * self.multiplier
         self._emit("coin", coin.x + coin.w / 2, coin.y + coin.h / 2)
         if (self.combo >= self._next_bonus_combo and not self.is_dashing
@@ -521,7 +626,7 @@ class Run:
     def _collect_powerup(self, entity: Entity) -> None:
         entity.collected = True
         if entity.kind == "magnet":
-            self.magnet = 7.0
+            self.magnet = self.magnet_duration
         elif entity.kind == "shield":
             self.shield = True
         elif entity.kind == "battery":

@@ -6,8 +6,10 @@ from pathlib import Path
 import pygame
 
 from .assets import Assets, create_music
-from .model import Run, WIDTH, HEIGHT, GROUND, PLAYER_X
-from .storage import SaveData, load_save, save_data, purchase, costs
+from .model import Run, PERKS, WIDTH, HEIGHT, GROUND, PLAYER_X
+from .storage import (SaveData, load_save, save_data, purchase, costs,
+                      buy_upgrade, record_progress)
+from .pages import draw_workshop, draw_contracts, draw_perks, draw_changelog
 
 INK = '#173c40'
 MUTED = '#557675'
@@ -48,6 +50,7 @@ class App:
         self.settled = False
         self.previous_best = self.data.best_score
         self.reward = 0
+        self.contract_reward = 0
         self.music = None if headless else create_music()
         self.music_channel = self.music.play(-1) if self.music else None
         self._volume()
@@ -95,7 +98,8 @@ class App:
             self.notify('存档暂时无法写入，本次记录仍保留在内存', 'Could not save; records remain in this session')
 
     def start(self, practice=False):
-        self.run = Run(seed=self.seed)
+        self.run = Run(seed=self.seed, upgrades=None if practice else self.data.upgrades,
+                       rewards=not practice)
         self.practice = practice
         if practice:
             self.run.distance = 350.0
@@ -104,6 +108,7 @@ class App:
         self.scene = 'run'
         self.settled = False
         self.reward = 0
+        self.contract_reward = 0
         self.previous_best = self.data.best_score
         self.particles.clear()
         self.slide_keys.clear()
@@ -126,7 +131,17 @@ class App:
         self.data.best_distance = max(self.data.best_distance, int(r.distance))
         self.data.total_coins += r.coins + self.reward
         self.data.runs += 1
+        result = record_progress(self.data, r.distance, r.coins, r.boss_defeated)
+        self.contract_reward = result['bonus']
         self.save()
+
+    def clear_input(self):
+        self.slide_keys.clear()
+        self.mouse_sliding = False
+        self.fire_keys.clear()
+        self.mouse_firing = False
+        self.run.set_fire(False)
+        self.run.set_slide(False)
 
     def action(self, name):
         if name == 'start':
@@ -145,22 +160,36 @@ class App:
             self.mouse_firing = True
             self.sync_fire()
         elif name == 'pause' and self.scene == 'run':
-            self.slide_keys.clear()
-            self.mouse_sliding = False
-            self.fire_keys.clear()
-            self.mouse_firing = False
-            self.run.set_fire(False)
-            self.run.set_slide(False)
+            self.clear_input()
             self.scene = 'pause'
             self._volume()
         elif name == 'resume' and self.scene == 'pause':
             self.scene = 'run'
             self._volume()
         elif name == 'menu':
-            if self.scene in ('pause', 'run'):
+            if self.scene in ('pause', 'run', 'perks'):
                 self.settle()
+            self.clear_input()
             self.scene = 'menu'
             self._volume()
+        elif name in ('workshop', 'contracts', 'changelog') and self.scene in ('menu', 'over'):
+            self.scene = name
+            self.assets.play('select')
+        elif name.startswith('upgrade:') and self.scene == 'workshop':
+            key = name.split(':', 1)[1]
+            if buy_upgrade(self.data, key):
+                self.assets.play('power')
+                self.notify('升级完成！下次普通冒险生效', 'UPGRADED! Active on your next adventure')
+                self.save()
+            else:
+                self.notify('金币不足，或此项已满级', 'Not enough coins, or already at max level')
+        elif name.startswith('perk:') and self.scene == 'perks':
+            key = name.split(':', 1)[1]
+            if self.run.choose_perk(key):
+                self.clear_input()
+                self.scene = 'run'
+                self.assets.play('power')
+                self.notify('天赋已生效，继续冒险！', 'PERK READY. Keep the adventure going!')
         elif name == 'mute':
             self.data.muted = not self.data.muted
             self.assets.muted = self.data.muted
@@ -191,7 +220,7 @@ class App:
     def events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                if self.scene in ('run', 'pause'):
+                if self.scene in ('run', 'pause', 'perks'):
                     self.settle()
                 self.running = False
             elif event.type == pygame.WINDOWFOCUSLOST and self.scene == 'run':
@@ -208,11 +237,16 @@ class App:
                 elif k in (pygame.K_ESCAPE, pygame.K_p):
                     if self.scene == 'run': self.action('pause')
                     elif self.scene == 'pause': self.action('resume')
-                    elif self.scene == 'over': self.action('menu')
+                    elif self.scene in ('over', 'workshop', 'contracts', 'changelog', 'perks'):
+                        self.action('menu')
                 elif k in (pygame.K_RETURN, pygame.K_SPACE) and self.scene in ('menu', 'over'):
                     self.action('start')
                 elif k == pygame.K_RETURN and self.scene == 'pause':
                     self.action('resume')
+                elif self.scene == 'perks' and k in (pygame.K_1, pygame.K_2, pygame.K_3):
+                    index = k - pygame.K_1
+                    if index < len(self.run.perk_choices):
+                        self.action('perk:' + self.run.perk_choices[index])
                 elif self.scene == 'run':
                     if k in (pygame.K_SPACE, pygame.K_w, pygame.K_UP): self.action('jump')
                     elif k in (pygame.K_s, pygame.K_DOWN, pygame.K_LCTRL, pygame.K_RCTRL):
@@ -255,12 +289,16 @@ class App:
                 self.particles.append([x, y, random.uniform(-130, 130), random.uniform(-190, 0), .5, random.choice(colors)])
             if name == 'bonus': self.notify('金币狂欢！8 秒自动吸金', 'COIN RUSH! 8 seconds of automatic collection')
             if name == 'shield': self.notify('护盾挡住了撞击', 'Shield saved you!')
-            if name == 'boss_warning': self.notify('蜂巢守卫来了！按住 K / X 自动瞄准射击', 'HIVE GUARDIAN! Hold K / X to aim and fire')
+            if name == 'boss_warning': self.notify('守卫来袭！留意攻击预警，按住 K / X 射击', 'GUARDIAN! Read the attack cues; hold K / X to fire')
             if name == 'boss_defeated': self.notify('守卫击破！+50金币 / +500分 / 护盾 / 满能量', 'GUARDIAN DOWN! +50 coins / +500 score / shield / full energy')
         for p in self.particles:
             p[0] += p[2] * dt; p[1] += p[3] * dt; p[3] += 360 * dt; p[4] -= dt
         self.particles = [p for p in self.particles[-250:] if p[4] > 0]
-        if not self.run.alive or (self.practice and self.run.boss_defeated > 0 and self.run.boss is None):
+        if self.run.perk_choices:
+            self.clear_input()
+            self.scene = 'perks'
+            self.toast_time = 0
+        elif not self.run.alive or (self.practice and self.run.boss_defeated > 0 and self.run.boss is None):
             self.settle()
             self.scene = 'over'
 
@@ -311,14 +349,17 @@ class App:
         self.text(self.tr('轻装上阵 · 一路追风', 'ONE MORE RUN. ONE MORE ADVENTURE.'), (78, 135), 24, GREEN)
         self.text(self.tr('云端冲刺', 'CLOUD'), (73, 178), 84, INK)
         self.text(self.tr('把好心情，跑出来。', 'DASH'), (78, 282), 34 if self.lang == 'zh' else 66, INK)
-        self.text(self.tr('二段跳、滑铲、吸金币，连击开启金币狂欢。', 'Jump twice. Slide low. Collect a sky full of coins.'), (80, 359), 21, MUTED)
+        self.text(self.tr('击破守卫，搭配天赋，让每次冒险都不同。', 'Beat guardians. Pick perks. Build your next adventure.'), (80, 359), 20, MUTED)
         self.button((80, 414, 290, 64), self.tr('开始冒险   →', 'LET’S RUN   →'), 'start', True)
         self.button((390, 414, 225, 64), self.tr('Boss 练习', 'BOSS PRACTICE'), 'practice')
         self.text(self.tr('或按 Enter / 空格开始', 'or press ENTER / SPACE'), (90, 495), 18, MUTED)
-        self.panel((80, 538, 357, 44), '#edf6dd', 14, False)
-        self.text(self.tr('最佳', 'BEST'), (96, 550), 18, GREEN)
-        self.text(f'{self.data.best_score:,}', (172, 546), 28, INK, latin=True)
-        self.text(f'{self.data.total_coins}  ' + self.tr('金币', 'COINS'), (285, 550), 18, GREEN)
+        for x, label, action in [(80, self.tr('升级工坊', 'WORKSHOP'), 'workshop'),
+                                  (262, self.tr('远征合约', 'CONTRACTS'), 'contracts'),
+                                  (444, self.tr('更新日志', 'WHAT’S NEW'), 'changelog')]:
+            self.button((x, 540, 168, 46), label, action, small=True)
+        self.text(self.tr('最佳 ', 'BEST ') + f'{self.data.best_score:,}  ·  {self.data.total_coins} '
+                  + self.tr('金币', 'COINS'), (726, 554), 19, GREEN)
+        self.text('v1.1.0', (1128, 554), 19, GREEN)
         # A character stage doubles as the cosmetic selector.
         self.panel((700, 134, 490, 70), '#f4fae8', 20)
         self.text(self.tr('选择你的追风伙伴', 'CHOOSE YOUR RUNNER'), (945, 159), 23, INK, True)
@@ -378,7 +419,8 @@ class App:
                 pygame.draw.ellipse(self.canvas, color, rect)
                 pygame.draw.ellipse(self.canvas, '#ffffff', rect.inflate(-18, -18), 3)
                 hint = self.tr('跳跃 ↑', 'JUMP') if projectile.kind == 'boss_low' else self.tr('滑铲 ↓', 'SLIDE')
-                self.text(hint, (rect.centerx, rect.top - 20), 18, '#944f32' if projectile.kind == 'boss_low' else '#78509e', True)
+                hint_y = rect.top - 20 if projectile.kind == 'boss_low' else rect.bottom + 16
+                self.text(hint, (rect.centerx, hint_y), 18, '#944f32' if projectile.kind == 'boss_low' else '#78509e', True)
         x, y, w, h = r.player_rect
         pygame.draw.ellipse(self.canvas, '#5a9d6a', (PLAYER_X - 7, GROUND - 7, 70, 13))
         if r.dash_timer > 0 or r.bonus_timer > 0:
@@ -411,7 +453,8 @@ class App:
         bob = math.sin(r.time * 3) * 8
         cx, cy = int(boss.x + boss.w / 2), int(boss.y + boss.h / 2 + bob)
         weak = boss.phase == 'weak'
-        color = '#f27b43' if boss.enraged else '#dcad4e'
+        storm = boss.kind == 'storm'
+        color = '#f27b43' if boss.enraged else '#9273d5' if storm else '#dcad4e'
         if weak: color = '#69d6c0'
         radius = 100 + int(math.sin(r.time * 6) * 3)
         if boss.phase == 'defeated':
@@ -424,20 +467,20 @@ class App:
             for n in range(3):
                 angle = r.time * .8 + n * math.tau / 3
                 pygame.draw.circle(self.canvas, color, (int(cx + math.cos(angle) * radius), int(cy + math.sin(angle) * radius)), 10)
-        sprite = 'enemies/bee_' + ('a' if int(r.time * 12) % 2 else 'b')
+        sprite = ('enemies/fly_' if storm else 'enemies/bee_') + ('a' if int(r.time * 12) % 2 else 'b')
         image = self.assets.sprite(sprite, int(boss.w), int(boss.h))
         self.canvas.blit(image, (boss.x, boss.y + bob))
         if weak:
             pygame.draw.circle(self.canvas, '#ffffff', (cx, cy + 19), 23, 3)
             pygame.draw.line(self.canvas, '#ffffff', (cx - 30, cy + 19), (cx + 30, cy + 19), 2)
-        label = self.tr('弱点开放 · 开火！', 'WEAK POINT · FIRE!') if weak else self.tr('狂暴装甲' if boss.enraged else '蜂巢装甲', 'ENRAGED ARMOR' if boss.enraged else 'HIVE ARMOR')
+        label = self.tr('弱点开放 · 开火！', 'WEAK POINT · FIRE!') if weak else self.tr('狂暴装甲' if boss.enraged else '风暴装甲' if storm else '蜂巢装甲', 'ENRAGED ARMOR' if boss.enraged else 'STORM ARMOR' if storm else 'HIVE ARMOR')
         if boss.phase == 'defeated': label = self.tr('击破！', 'GUARDIAN DOWN!')
         self.text(label, (cx, boss.y + boss.h + 43), 19, GREEN if weak else INK, True)
 
     def boss_hud(self):
         boss = self.run.boss
         self.panel((375, 126, 570, 90), '#fff8df', 19)
-        name = self.tr('蜂巢守卫', 'HIVE GUARDIAN')
+        name = self.tr('风暴守卫', 'STORM GUARDIAN') if boss.kind == 'storm' else self.tr('蜂巢守卫', 'HIVE GUARDIAN')
         if boss.enraged: name += self.tr(' · 狂暴', ' · ENRAGED')
         self.text(name, (395, 138), 22, '#944f32')
         self.text(f'{max(0, int(boss.hp))} / {int(boss.max_hp)}', (811, 141), 23, INK, latin=True)
@@ -447,7 +490,8 @@ class App:
         if boss.phase == 'warning':
             self.text(self.tr('准备迎战 · 按住 K / X 射击', 'GET READY · HOLD K / X TO FIRE'), (640, 248), 24, '#944f32', True)
         elif boss.phase == 'weak':
-            self.text(self.tr('弱点开放！射击伤害 ×4', 'WEAK POINT! 4x SHOT DAMAGE'), (640, 248), 24, GREEN, True)
+            damage = 8 + 2 * self.run.perks.get('focus', 0)
+            self.text(self.tr(f'弱点开放！每发 {damage} 伤害', f'WEAK POINT! {damage} DAMAGE PER SHOT'), (640, 248), 24, GREEN, True)
 
     def hud(self, biome):
         r = self.run
@@ -482,6 +526,13 @@ class App:
         if r.magnet > 0: status.append(self.tr('磁铁 ', 'MAGNET ') + f'{r.magnet:.0f}s')
         if r.dash_timer > 0: status.append(self.tr('冲刺 ', 'DASH ') + f'{r.dash_timer:.1f}s')
         if status: self.text(' / '.join(status), (45, 218), 20, GREEN)
+        if r.perks:
+            active = [(key, level) for key, level in r.perks.items() if level and key in PERKS]
+            for i, (key, level) in enumerate(active[:6]):
+                spec = PERKS[key]
+                label = self.tr(spec['name'], spec['name_en'])
+                self.panel((36 + i * 154, 588, 146, 25), '#edf6dd', 8, False)
+                self.text(f'{label} {level}', (43 + i * 154, 592), 14, GREEN)
         stage = self.tr('BOSS 练习 · 不计入存档', 'BOSS PRACTICE · NO SAVED REWARDS') if self.practice else ['01 / CLOUD MEADOW', '02 / GOLDEN DUNES', '03 / LILAC GROVE'][biome]
         self.text(stage, (38, 630), 22, '#ffffff')
         goal = self.tr('跳低波，滑高波；弱点开放时全力射击', 'Jump low waves. Slide high waves. Fire at weak points.') if r.boss else self.tr('目标：500米 · 60金币 · 2冲刺 / 每项 +25', 'GOALS: 500m · 60 coins · 2 dashes / +25 each')
@@ -525,19 +576,25 @@ class App:
             for x, value, label in [(405, f'{int(r.distance)}m', self.tr('奔跑距离', 'DISTANCE')), (560, str(r.coins), self.tr('收集金币', 'COINS')), (715, str(r.best_combo), self.tr('最高连击', 'COMBO')), (870, str(r.boss_defeated), self.tr('击破守卫', 'BOSSES'))]:
                 self.text(value, (x, 343), 40, INK, True, True)
                 self.text(label, (x, 380), 18, MUTED, True)
-            banked = self.tr('练习模式：不消耗金币，也不计入纪录', 'PRACTICE: NO COST, NO SAVED RECORDS') if self.practice else self.tr(f'已存入 {r.coins + self.reward} 金币（含目标奖励 {self.reward}）', f'BANKED {r.coins + self.reward} COINS · GOAL BONUS +{self.reward}')
+            banked = self.tr('练习模式：不消耗金币，也不计入纪录', 'PRACTICE: NO COST, NO SAVED RECORDS') if self.practice else self.tr(f'存入 {r.coins + self.reward + self.contract_reward} 金币 · 目标 +{self.reward} · 合约 +{self.contract_reward}', f'BANKED {r.coins + self.reward + self.contract_reward} · GOALS +{self.reward} · CONTRACTS +{self.contract_reward}')
             self.text(banked, (640, 432), 20, GREEN, True)
             self.button((389, 480, 502, 64), self.tr('再跑一局   →', 'RUN IT BACK   →'), 'start', True)
-            self.button((389, 562, 502, 45), self.tr('返回主页 · 换个伙伴', 'HOME · CHOOSE A RUNNER'), 'menu', small=True)
+            self.button((389, 562, 242, 45), self.tr('返回主页', 'HOME'), 'menu', small=True)
+            self.button((649, 562, 242, 45), self.tr('升级工坊', 'WORKSHOP'), 'workshop', small=True)
 
     def draw(self):
         self.buttons.clear()
         if self.scene == 'menu':
             self.menu()
+        elif self.scene in ('workshop', 'contracts', 'changelog'):
+            {'workshop': draw_workshop, 'contracts': draw_contracts,
+             'changelog': draw_changelog}[self.scene](self)
         else:
             self.world()
             if self.scene in ('pause', 'over'):
                 self.overlay()
+            elif self.scene == 'perks':
+                draw_perks(self)
         if self.toast_time > 0:
             self.panel((260, 558, 760, 42), INK, 12, False)
             self.text(self.toast, (640, 579), 19, 'white', True)
@@ -549,10 +606,15 @@ class App:
         pygame.display.flip()
 
     def loop(self, frames=0, screenshot=None, scene='menu'):
-        if scene != 'menu':
+        if scene in ('workshop', 'contracts', 'changelog'):
+            self.scene = scene
+        elif scene != 'menu':
             self.start(practice=scene == 'boss')
             if scene in ('pause', 'over'):
                 self.scene = scene
+            elif scene == 'perks':
+                self.run.perk_choices = ['wing', 'focus', 'capacitor']
+                self.scene = 'perks'
         count = 0
         while self.running and (not frames or count < frames):
             dt = min(self.clock.tick(60) / 1000, .1) if not self.headless else 1/60
