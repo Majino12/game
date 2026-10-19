@@ -1,5 +1,6 @@
 """Exercise real SDL input and screen coordinates without touching user saves."""
 
+from copy import deepcopy
 import os
 import unittest
 from unittest import mock
@@ -7,6 +8,7 @@ from unittest import mock
 import pygame
 
 from runner.app import App
+from runner.content import HEROES
 from runner.model import WIDTH, HEIGHT
 from runner.storage import SaveData
 
@@ -158,6 +160,9 @@ class AppTests(unittest.TestCase):
     def test_practice_can_be_opened_retried_and_never_banks_rewards(self):
         self.app.draw()
         self.click_button("practice")
+        self.assertEqual(self.app.scene, "practice")
+        self.app.draw()
+        self.click_button("practice:bee")
         self.app.update(1 / 60)
         self.assertTrue(self.app.practice)
         self.assertIsNotNone(self.app.run.boss)
@@ -280,6 +285,149 @@ class AppTests(unittest.TestCase):
         self.assertFalse(self.app.running)
         self.assertEqual(self.app.data.total_coins, 9)
         self.assertEqual(self.app.data.runs, 1)
+
+    def test_selected_runner_is_used_by_both_adventure_and_practice(self):
+        self.app.data.unlocked = ['beige', 'pink', 'purple']
+        for character in self.app.data.unlocked:
+            with self.subTest(character=character):
+                self.app.action('menu')
+                self.app.draw()
+                self.click_button('hero:' + character)
+                self.assertEqual(self.app.data.selected, character)
+                self.app.start()
+                self.assertEqual(self.app.run.character, character)
+                self.key_down(pygame.K_e)
+                self.assertEqual(self.app.run.skill_cooldown, HEROES[character]['cooldown'])
+                if character == 'beige':
+                    self.assertTrue(self.app.run.shield)
+                elif character == 'pink':
+                    self.assertLess(self.app.run.player_vy, 0)
+                    self.assertGreater(self.app.run.magnet, 0)
+                else:
+                    self.assertEqual(self.app.run.energy, 60)
+                self.app.start(practice=True)
+                self.assertEqual(self.app.run.character, character)
+                self.assertEqual(self.app.run.skill_count, 0)
+
+    def test_skill_keyboard_and_mouse_share_cooldown_and_ignore_key_repeat(self):
+        self.app.start()
+        self.app.run.entities.clear()
+        self.app.run._spawn_timer = 100000
+        self.app.draw()
+        self.send(pygame.KEYDOWN, key=pygame.K_e, repeat=True)
+        self.assertEqual(self.app.run.skill_count, 0)
+        self.key_down(pygame.K_e)
+        self.assertEqual(self.app.run.skill_count, 1)
+        initial_cooldown = self.app.run.skill_cooldown
+        self.click_button('skill')
+        self.key_down(pygame.K_e)
+        self.assertEqual(self.app.run.skill_count, 1)
+        for _ in range(int(initial_cooldown * 10)):
+            self.app.update(.1)
+        self.assertTrue(self.app.run.alive)
+        self.assertEqual(self.app.run.skill_cooldown, 0)
+        self.app.draw()
+        self.click_button('skill')
+        self.assertEqual(self.app.run.skill_count, 2)
+        self.assertEqual(self.app.run.skill_cooldown, initial_cooldown)
+
+    def test_pause_and_perk_overlay_reject_skill_and_freeze_cooldowns(self):
+        self.app.start()
+        self.key_down(pygame.K_e)
+        self.app.action('pause')
+        self.assertTrue(self.app.run.paused)
+        frozen = (self.app.run.time, self.app.run.skill_cooldown, self.app.run.skill_timer)
+        self.key_down(pygame.K_e)
+        self.app.action('skill')
+        self.assertFalse(self.app.run.skill())
+        self.app.update(.5)
+        self.app.run.update(.5)
+        self.assertEqual((self.app.run.time, self.app.run.skill_cooldown, self.app.run.skill_timer), frozen)
+        self.app.action('resume')
+        self.assertFalse(self.app.run.paused)
+        self.app.update(.1)
+        self.assertLess(self.app.run.skill_cooldown, frozen[1])
+        self.app.run.skill_cooldown = 0
+        self.app.run.perk_choices = ['wing', 'focus', 'magnet']
+        self.app.update(.1)
+        self.assertEqual(self.app.scene, 'perks')
+        frozen_time = self.app.run.time
+        self.key_down(pygame.K_e)
+        self.app.action('skill')
+        self.assertFalse(self.app.run.skill())
+        self.app.update(.5)
+        self.assertEqual(self.app.run.time, frozen_time)
+        self.assertEqual(self.app.run.skill_count, 1)
+        self.key_down(pygame.K_1)
+        self.assertEqual(self.app.scene, 'run')
+        self.key_down(pygame.K_e)
+        self.assertEqual(self.app.run.skill_count, 2)
+
+    def test_focus_loss_blocks_skill_until_explicit_keyboard_resume(self):
+        self.app.start()
+        self.send(pygame.WINDOWFOCUSLOST)
+        self.key_down(pygame.K_e)
+        self.app.action('skill')
+        self.assertEqual(self.app.scene, 'pause')
+        self.assertTrue(self.app.run.paused)
+        self.assertEqual(self.app.run.skill_count, 0)
+        self.key_down(pygame.K_RETURN)
+        self.key_down(pygame.K_e)
+        self.assertEqual(self.app.scene, 'run')
+        self.assertEqual(self.app.run.skill_count, 1)
+
+    def test_all_practice_choices_retry_the_selected_boss_without_saved_rewards(self):
+        baseline = deepcopy(self.app.data)
+        for kind in ('bee', 'storm', 'crystal'):
+            with self.subTest(boss=kind):
+                self.app.action('menu')
+                self.app.draw()
+                self.click_button('practice')
+                self.assertEqual(self.app.scene, 'practice')
+                self.app.draw()
+                actions = {action for _, action in self.app.buttons}
+                self.assertTrue({'practice:bee', 'practice:storm', 'practice:crystal'} <= actions)
+                self.click_button('practice:' + kind)
+                self.app.update(1 / 60)
+                self.assertEqual(self.app.run.boss.kind, kind)
+                self.assertEqual(self.app.practice_boss, kind)
+                self.app.run.distance, self.app.run.coins = 9000, 1500
+                self.app.run.boss_defeated = 10
+                self.app.run.alive = False
+                self.app.update(.1)
+                self.assertEqual(self.app.scene, 'over')
+                self.assertEqual(self.app.data, baseline)
+                self.key_down(pygame.K_RETURN)
+                self.app.update(1 / 60)
+                self.assertTrue(self.app.practice)
+                self.assertEqual(self.app.run.boss.kind, kind)
+                self.assertEqual(self.app.data, baseline)
+        self.load_save.assert_not_called()
+        self.save_data.assert_not_called()
+
+    def test_adventure_starts_with_bee_after_practicing_crystal(self):
+        self.app.action('practice')
+        self.app.action('practice:crystal')
+        self.app.update(1 / 60)
+        self.assertEqual(self.app.run.boss.kind, 'crystal')
+        self.app.action('menu')
+        self.app.action('start')
+        self.assertFalse(self.app.practice)
+        self.app.run.distance = 350
+        self.app.update(1 / 60)
+        self.assertEqual(self.app.run.boss.kind, 'bee')
+
+    def test_map_guide_and_practice_selection_return_home_with_escape(self):
+        for action, scene in (('maps', 'maps'), ('practice', 'practice')):
+            with self.subTest(scene=scene):
+                baseline = deepcopy(self.app.data)
+                self.app.draw()
+                self.click_button(action)
+                self.assertEqual(self.app.scene, scene)
+                self.app.draw()
+                self.key_down(pygame.K_ESCAPE)
+                self.assertEqual(self.app.scene, 'menu')
+                self.assertEqual(self.app.data, baseline)
 
 
 if __name__ == "__main__":

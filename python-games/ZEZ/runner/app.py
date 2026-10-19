@@ -7,9 +7,12 @@ import pygame
 
 from .assets import Assets, create_music
 from .model import Run, PERKS, WIDTH, HEIGHT, GROUND, PLAYER_X
+from .content import HEROES, BOSS_SPECS
+from .routes import MAPS
 from .storage import (SaveData, load_save, save_data, purchase, costs,
                       buy_upgrade, record_progress)
-from .pages import draw_workshop, draw_contracts, draw_perks, draw_changelog
+from .pages import (draw_workshop, draw_contracts, draw_perks, draw_changelog,
+                    draw_maps, draw_practice, fit_text, wrapped)
 
 INK = '#173c40'
 MUTED = '#557675'
@@ -19,7 +22,7 @@ GOLD = '#ffd569'
 
 
 class App:
-    def __init__(self, headless=False, seed=None):
+    def __init__(self, headless=False, seed=None, character=None, boss_kind="bee"):
         pygame.mixer.pre_init(22050, -16, 2, 512)
         pygame.init()
         self.window = pygame.display.set_mode((1152, 648), pygame.RESIZABLE)
@@ -29,11 +32,14 @@ class App:
         self.assets = Assets()
         pygame.display.set_icon(self.assets.sprite('characters/character_beige_front', 64, 64))
         self.data = SaveData() if headless else load_save()
+        if character in HEROES:
+            self.data.selected = character
         self.assets.muted = self.data.muted
         self.lang = self.data.language if self.assets.has_cjk else 'en'
         self.headless = headless
         self.seed = seed
-        self.run = Run(seed=seed)
+        self.run = Run(seed=seed, character=self.data.selected)
+        self.practice_boss = boss_kind if boss_kind in BOSS_SPECS else "bee"
         self.scene = 'menu'
         self.running = True
         self.fullscreen = False
@@ -99,7 +105,8 @@ class App:
 
     def start(self, practice=False):
         self.run = Run(seed=self.seed, upgrades=None if practice else self.data.upgrades,
-                       rewards=not practice)
+                       rewards=not practice, character=self.data.selected,
+                       first_boss=self.practice_boss if practice else "bee")
         self.practice = practice
         if practice:
             self.run.distance = 350.0
@@ -146,8 +153,15 @@ class App:
     def action(self, name):
         if name == 'start':
             self.start(practice=self.practice and self.scene == 'over')
-        elif name == 'practice':
-            self.start(practice=True)
+        elif name == 'practice' and self.scene in ('menu', 'over'):
+            self.scene = 'practice'
+        elif name.startswith('practice:') and self.scene == 'practice':
+            kind = name.split(':', 1)[1]
+            if kind in BOSS_SPECS:
+                self.practice_boss = kind
+                self.start(practice=True)
+        elif name == 'skill' and self.scene == 'run':
+            self.run.skill()
         elif name == 'jump' and self.scene == 'run':
             self.run.jump()
         elif name == 'slide' and self.scene == 'run':
@@ -162,8 +176,10 @@ class App:
         elif name == 'pause' and self.scene == 'run':
             self.clear_input()
             self.scene = 'pause'
+            self.run.set_paused(True)
             self._volume()
         elif name == 'resume' and self.scene == 'pause':
+            self.run.set_paused(False)
             self.scene = 'run'
             self._volume()
         elif name == 'menu':
@@ -172,7 +188,7 @@ class App:
             self.clear_input()
             self.scene = 'menu'
             self._volume()
-        elif name in ('workshop', 'contracts', 'changelog') and self.scene in ('menu', 'over'):
+        elif name in ('workshop', 'contracts', 'changelog', 'maps') and self.scene in ('menu', 'over'):
             self.scene = name
             self.assets.play('select')
         elif name.startswith('upgrade:') and self.scene == 'workshop':
@@ -202,7 +218,7 @@ class App:
                 self.lang = 'en' if self.lang == 'zh' else 'zh'
                 self.data.language = self.lang
                 self.save()
-        elif name.startswith('hero:'):
+        elif name.startswith('hero:') and self.scene == 'menu':
             color = name.split(':')[1]
             if purchase(self.data, color):
                 self.data.selected = color
@@ -237,7 +253,7 @@ class App:
                 elif k in (pygame.K_ESCAPE, pygame.K_p):
                     if self.scene == 'run': self.action('pause')
                     elif self.scene == 'pause': self.action('resume')
-                    elif self.scene in ('over', 'workshop', 'contracts', 'changelog', 'perks'):
+                    elif self.scene in ('over', 'workshop', 'contracts', 'changelog', 'perks', 'maps', 'practice'):
                         self.action('menu')
                 elif k in (pygame.K_RETURN, pygame.K_SPACE) and self.scene in ('menu', 'over'):
                     self.action('start')
@@ -253,6 +269,7 @@ class App:
                         self.slide_keys.add(k)
                         self.sync_slide()
                     elif k in (pygame.K_j, pygame.K_LSHIFT, pygame.K_RSHIFT): self.action('dash')
+                    elif k == pygame.K_e and not getattr(event, 'repeat', False): self.action('skill')
                     elif k in (pygame.K_k, pygame.K_x):
                         self.fire_keys.add(k)
                         self.sync_fire()
@@ -287,6 +304,12 @@ class App:
             colors = [GOLD, '#fff6bb', '#e9a948'] if name == 'coin' else ['#9de9d9', '#ffffff', '#56baae']
             for _ in range(3 if name == 'shot' else 7 if name == 'coin' else 14):
                 self.particles.append([x, y, random.uniform(-130, 130), random.uniform(-190, 0), .5, random.choice(colors)])
+            if name == 'skill':
+                hero = HEROES[self.run.character]
+                self.notify(hero['skill'] + '！', hero['skill_en'].upper() + '!')
+            if name == 'route_changed':
+                route = self.run.route.current
+                self.notify(route['name'] + ' · ' + route['hint'], route['name_en'] + ' · ' + route['hint_en'])
             if name == 'bonus': self.notify('金币狂欢！8 秒自动吸金', 'COIN RUSH! 8 seconds of automatic collection')
             if name == 'shield': self.notify('护盾挡住了撞击', 'Shield saved you!')
             if name == 'boss_warning': self.notify('守卫来袭！留意攻击预警，按住 K / X 射击', 'GUARDIAN! Read the attack cues; hold K / X to fire')
@@ -302,28 +325,41 @@ class App:
             self.settle()
             self.scene = 'over'
 
-    def background(self, distance=0, clock=0):
-        biome = int(distance // 500) % 3
-        sky = ['#ddf4ec', '#f4e5d1', '#e4e0f5'][biome]
-        self.canvas.fill(sky)
-        pygame.draw.circle(self.canvas, ['#f7f9d5', '#fff4cd', '#fff5e3'][biome], (1030, 165), 73)
+    def background(self, distance=0, clock=0, map_key='meadow'):
+        spec = MAPS[map_key]
+        colors = spec['palette']
+        self.canvas.fill(colors['sky'])
+        pygame.draw.circle(self.canvas, colors['sun'], (1030, 165), 73)
         pygame.draw.circle(self.canvas, '#fffced', (1030, 165), 53)
         for i in range(6):
             x = (i * 265 - distance * 1.5) % 1550 - 160
             y = 160 + (i % 3) * 65
             pygame.draw.ellipse(self.canvas, '#f7fcf4', (x, y, 140, 35))
             pygame.draw.ellipse(self.canvas, '#f7fcf4', (x + 35, y - 23, 65, 55))
-        theme = ['hills', 'desert', 'trees'][biome]
-        bg = self.assets.landscape(theme, sky)
+        bg = self.assets.landscape(spec['theme'], colors['sky'])
         offset = int(distance * 4) % 800
         for i in range(-1, 3):
             self.canvas.blit(bg, (i * 800 - offset, GROUND - 460))
-        tile_theme = ['grass', 'sand', 'purple'][biome]
+        for i in range(7):
+            x = (i * 230 - distance * 8) % 1600 - 160
+            if map_key == 'ruins':
+                y = 345 + (i % 3) * 61 + math.sin(clock + i) * 8
+                pygame.draw.polygon(self.canvas, '#c5b8dd', [(x, y), (x + 100, y), (x + 65, y + 48), (x + 23, y + 40)])
+                pygame.draw.rect(self.canvas, '#aa98c4', (x + 25, y - 65, 23, 65), border_radius=4)
+                pygame.draw.line(self.canvas, '#e7dcf7', (x + 15, y), (x + 90, y), 5)
+            elif map_key == 'grove':
+                y = 370 + (i % 3) * 50
+                pygame.draw.circle(self.canvas, '#d4f8c7', (int(x), y), 12)
+                pygame.draw.circle(self.canvas, '#7fc9a8', (int(x), y), 5)
+                pygame.draw.line(self.canvas, '#9fbdae', (x, y + 15), (x, y + 32), 2)
+            else:
+                sprite = 'bush' if map_key == 'meadow' else 'rock'
+                self.canvas.blit(self.assets.sprite('tiles/' + sprite, 86, 43), (x, GROUND - 42))
         offset = int(distance * 25) % 80
         for x in range(-80, WIDTH + 80, 80):
-            self.canvas.blit(self.assets.sprite('tiles/terrain_' + tile_theme + '_block_top', 80, 80, False), (x - offset, GROUND))
-        pygame.draw.rect(self.canvas, ['#c98454', '#c9a16e', '#b589ae'][biome], (0, GROUND + 80, WIDTH, HEIGHT - GROUND - 80))
-        return biome
+            self.canvas.blit(self.assets.sprite('tiles/terrain_' + spec['tile_theme'] + '_block_top', 80, 80, False), (x - offset, GROUND))
+        pygame.draw.rect(self.canvas, colors['soil'], (0, GROUND + 80, WIDTH, HEIGHT - GROUND - 80))
+        return map_key
 
     def hero(self, x, feet, height=80, state='walk', color=None, phase=None, alpha=255):
         phase = self.ui_time if phase is None else phase
@@ -354,20 +390,25 @@ class App:
         self.button((390, 414, 225, 64), self.tr('Boss 练习', 'BOSS PRACTICE'), 'practice')
         self.text(self.tr('或按 Enter / 空格开始', 'or press ENTER / SPACE'), (90, 495), 18, MUTED)
         for x, label, action in [(80, self.tr('升级工坊', 'WORKSHOP'), 'workshop'),
-                                  (262, self.tr('远征合约', 'CONTRACTS'), 'contracts'),
-                                  (444, self.tr('更新日志', 'WHAT’S NEW'), 'changelog')]:
-            self.button((x, 540, 168, 46), label, action, small=True)
+                                  (215, self.tr('远征合约', 'CONTRACTS'), 'contracts'),
+                                  (350, self.tr('地图图鉴', 'MAPS'), 'maps'),
+                                  (485, self.tr('更新日志', 'UPDATES'), 'changelog')]:
+            self.button((x, 540, 127, 46), label, action, small=True)
         self.text(self.tr('最佳 ', 'BEST ') + f'{self.data.best_score:,}  ·  {self.data.total_coins} '
-                  + self.tr('金币', 'COINS'), (726, 554), 19, GREEN)
-        self.text('v1.1.0', (1128, 554), 19, GREEN)
-        # A character stage doubles as the cosmetic selector.
+                  + self.tr('金币', 'COINS'), (710, 102), 19, GREEN)
+        self.text('v1.2.0', (320, 39), 18, GREEN)
+        # Show abilities before players spend their earned coins.
         self.panel((700, 134, 490, 70), '#f4fae8', 20)
         self.text(self.tr('选择你的追风伙伴', 'CHOOSE YOUR RUNNER'), (945, 159), 23, INK, True)
-        self.text(self.tr('不同外观，同样好手感', 'SAME SKILLS. YOUR STYLE.'), (945, 187), 15, MUTED, True)
+        self.text(self.tr('按 E 释放专属技能 · 开局即可使用', 'PRESS E FOR A UNIQUE SKILL · READY AT START'), (945, 187), 15, MUTED, True)
         for i, color in enumerate(('beige', 'pink', 'purple')):
             x = 720 + i * 162
             selected = self.data.selected == color
-            if selected: self.panel((x - 8, 266, 148, 265), '#fff8dc', 28)
+            if selected: self.panel((x - 8, 222, 148, 309), '#fff8dc', 28)
+            spec = HEROES[color]
+            fit_text(self, self.tr(spec['name'], spec['name_en']), (x + 65, 247), 25, 138)
+            fit_text(self, self.tr(spec['skill'], spec['skill_en']), (x + 65, 284), 19, 138, GREEN)
+            self.text(f'E · {int(spec["cooldown"])}s', (x + 65, 304), 16, MUTED, True, True)
             pygame.draw.ellipse(self.canvas, '#90b18b', (x + 13, 451, 100, 18))
             self.hero(x + 35, 452 + math.sin(self.ui_time * 3 + i) * 5, 133, 'walk', color)
             name = [self.tr('奶油', 'CREAM'), self.tr('莓莓', 'BERRY'), self.tr('星云', 'NOVA')][i]
@@ -376,18 +417,23 @@ class App:
             self.button((x, 481, 130, 39), label, 'hero:' + color, selected, True)
         for x, y in ((650, 280), (1210, 250), (663, 420)):
             self.canvas.blit(self.assets.sprite('tiles/coin_gold', 30, 36), (x, y + math.sin(self.ui_time * 2 + x) * 9))
-        controls = [(50, 'SPACE / W', self.tr('跳跃 · 再按二段跳', 'JUMP · DOUBLE JUMP')),
-                    (350, 'S / DOWN', self.tr('按住滑铲 · 空中速降', 'SLIDE · FAST FALL')),
-                    (650, 'J / SHIFT', self.tr('满能量冲刺 · 破甲', 'ENERGY DASH · SMASH')),
-                    (950, 'K / X', self.tr('Boss 战按住连续射击', 'BOSS · HOLD TO FIRE'))]
-        for x, key, label in controls:
-            self.panel((x, 620, 280, 67), '#fff7df', 16, False)
-            self.text(key, (x + 18, 631), 24, INK, latin=True)
-            self.text(label, (x + 18, 660), 16, MUTED)
+        spec = HEROES[self.data.selected]
+        self.panel((700, 540, 490, 64), '#f4fae8', 16, False)
+        wrapped(self, self.tr(spec['desc'], spec['desc_en']), (715, 550, 462, 50), 17, GREEN, 3)
+        controls = [('SPACE / W', self.tr('跳跃 · 二段跳', 'JUMP · DOUBLE JUMP')),
+                    ('S / DOWN', self.tr('滑铲 · 空中速降', 'SLIDE · FAST FALL')),
+                    ('J / SHIFT', self.tr('满能量冲刺', 'FULL ENERGY DASH')),
+                    ('K / X', self.tr('Boss 战连续射击', 'BOSS · HOLD TO FIRE')),
+                    ('E', self.tr('角色专属技能', 'CHARACTER SKILL'))]
+        for i, (key, label) in enumerate(controls):
+            x = 30 + i * 250
+            self.panel((x, 620, 230, 67), '#fff7df', 16, False)
+            self.text(key, (x + 16, 631), 24, INK, latin=True)
+            self.text(label, (x + 16, 660), 16, MUTED)
 
     def world(self):
         r = self.run
-        biome = self.background(r.distance, r.time)
+        biome = self.background(r.distance, r.time, r.route.key)
         if r.boss:
             self.draw_boss()
         if r.bonus_timer > 0:
@@ -397,6 +443,8 @@ class App:
             if e.kind == 'coin':
                 width = max(9, int(28 * abs(math.cos(r.time * 5 + e.x / 150))))
                 self.canvas.blit(self.assets.sprite('tiles/coin_gold', width, 30), (e.x + (e.w - width) / 2, e.y))
+            elif e.kind in ('spring', 'treasure', 'glow'):
+                self.draw_special(e, r.time)
             elif e.kind in ('magnet', 'shield', 'battery'):
                 color, label = {'magnet': ('#b76ce6', 'M'), 'shield': ('#4daed2', 'S'), 'battery': ('#e8b642', '+')}[e.kind]
                 pygame.draw.circle(self.canvas, '#fffdf1', (int(e.x + e.w/2), int(e.y + e.h/2)), 29)
@@ -414,12 +462,15 @@ class App:
                 pygame.draw.ellipse(self.canvas, '#6de9df', rect.inflate(6, 6))
                 pygame.draw.ellipse(self.canvas, '#fffde7', rect)
             else:
-                color = '#f77947' if projectile.kind == 'boss_low' else '#a775e6'
+                color = '#50a9b3' if projectile.kind == 'boss_orb' else '#f77947' if projectile.kind == 'boss_low' else '#a775e6'
                 pygame.draw.ellipse(self.canvas, '#fff2ce', rect.inflate(12, 12))
-                pygame.draw.ellipse(self.canvas, color, rect)
+                if projectile.kind == 'boss_orb':
+                    pygame.draw.polygon(self.canvas, color, [rect.midtop, rect.midright, rect.midbottom, rect.midleft])
+                else:
+                    pygame.draw.ellipse(self.canvas, color, rect)
                 pygame.draw.ellipse(self.canvas, '#ffffff', rect.inflate(-18, -18), 3)
-                hint = self.tr('跳跃 ↑', 'JUMP') if projectile.kind == 'boss_low' else self.tr('滑铲 ↓', 'SLIDE')
-                hint_y = rect.top - 20 if projectile.kind == 'boss_low' else rect.bottom + 16
+                hint = self.tr('离开锁定线', 'LEAVE LOCKED LANE') if projectile.kind == 'boss_orb' else self.tr('跳跃 ↑', 'JUMP') if projectile.kind == 'boss_low' else self.tr('滑铲 ↓', 'SLIDE')
+                hint_y = rect.top - 20 if projectile.kind in ('boss_low', 'boss_orb') else rect.bottom + 16
                 self.text(hint, (rect.centerx, hint_y), 18, '#944f32' if projectile.kind == 'boss_low' else '#78509e', True)
         x, y, w, h = r.player_rect
         pygame.draw.ellipse(self.canvas, '#5a9d6a', (PLAYER_X - 7, GROUND - 7, 70, 13))
@@ -427,34 +478,59 @@ class App:
             pygame.draw.ellipse(self.canvas, '#fdf4b5', (x - 93, y + h/3, 140, h/2))
             for n in range(3):
                 pygame.draw.line(self.canvas, '#ffffff', (x - 35 - n * 25, y + 15 + n * 18), (x - 85 - n * 27, y + 15 + n * 18), 4)
+        if r.skill_timer > 0:
+            pygame.draw.circle(self.canvas, HEROES[r.character]['color'], (int(x+w/2), int(y+h/2)), 70 + int(12 * math.sin(r.time * 20)), 6)
         if r.shield:
             pygame.draw.circle(self.canvas, '#b0f3ed', (int(x+w/2), int(y+h/2)), int(h/2 + 17), 4)
         if r.magnet > 0:
             pygame.draw.circle(self.canvas, '#bfa0e2', (int(x+w/2), int(y+h/2)), 68, 2)
         state = 'duck' if r.sliding and r.player_y >= GROUND - 1 else 'jump' if r.player_y < GROUND - 1 else 'walk'
         alpha = 135 if r.invulnerable > 0 and int(r.time * 16) % 2 == 0 else 255
-        self.hero(x, r.player_y, 38 if state == 'duck' else 78, state, phase=r.time, alpha=alpha)
+        self.hero(x, r.player_y, 38 if state == 'duck' else 78, state, phase=r.time, alpha=alpha, color=r.character)
         for p in self.particles:
             pygame.draw.circle(self.canvas, p[5], (int(p[0]), int(p[1])), max(1, int(p[4] * 9)))
         self.hud(biome)
+
+    def draw_special(self, entity, clock):
+        e = entity
+        if e.kind == 'spring':
+            self.canvas.blit(self.assets.sprite('tiles/spring', int(e.w), int(e.h)), (e.x, e.y))
+            self.text(self.tr('↑ 弹簧', '↑ SPRING'), (e.x + e.w / 2, e.y - 22), 16, GREEN, True)
+        elif e.kind == 'treasure':
+            self.canvas.blit(self.assets.sprite('tiles/block_planks', int(e.w), int(e.h)), (e.x, e.y))
+            pygame.draw.line(self.canvas, GOLD, (e.x, e.y + e.h / 2), (e.x + e.w, e.y + e.h / 2), 6)
+            self.canvas.blit(self.assets.sprite('tiles/gem_yellow', 20, 24), (e.x + e.w / 2 - 10, e.y + e.h / 2 - 12))
+            self.text(self.tr('+ 宝箱', '+ CHEST'), (e.x + e.w / 2, e.y - 22), 16, GREEN, True)
+        else:
+            center = (int(e.x + e.w / 2), int(e.y + e.h / 2))
+            pygame.draw.circle(self.canvas, '#dcffe1', center, 29 + int(math.sin(clock * 5) * 3))
+            self.canvas.blit(self.assets.sprite('tiles/gem_green', int(e.w), int(e.h)), (e.x, e.y))
+            self.text(self.tr('+ 荧光', '+ GLOW'), (center[0], e.y - 24), 16, GREEN, True)
 
     def draw_boss(self):
         r, boss = self.run, self.run.boss
         if boss.telegraph > 0 and boss.phase != 'warning':
             low = boss.attack == 'low'
-            lane_y = GROUND - (44 if low else 112)
+            aimed = boss.attack == 'aim'
+            lane_y = boss.target_y - 27 if aimed else GROUND - (44 if low else 112)
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            color = (240, 110, 60, 40) if low else (152, 96, 220, 40)
+            color = (50, 160, 180, 65) if aimed else (240, 110, 60, 40) if low else (152, 96, 220, 40)
             pygame.draw.rect(overlay, color, (PLAYER_X - 30, lane_y, boss.x - PLAYER_X + 30, 50), border_radius=12)
             self.canvas.blit(overlay, (0, 0))
             for x in range(PLAYER_X, int(boss.x), 44):
                 pygame.draw.line(self.canvas, '#dc814c' if low else '#a577c4', (x, lane_y + 50), (x + 24, lane_y + 50), 2)
-            self.text(self.tr('准备跳跃 ↑' if low else '准备滑铲 ↓', 'GET READY TO JUMP' if low else 'GET READY TO SLIDE'), (640, 265), 25, '#914b32' if low else '#78509e', True)
+            cue = self.tr('高度已锁定 · 离开标记区域！', 'HEIGHT LOCKED · LEAVE THE MARKED LANE!') if aimed else self.tr('准备跳跃 ↑' if low else '准备滑铲 ↓', 'GET READY TO JUMP' if low else 'GET READY TO SLIDE')
+            if boss.burst > 1 and not aimed:
+                cue += self.tr(' · 连续双波', ' · DOUBLE WAVE')
+            self.text(cue, (640, 265), 24, '#326d7d' if aimed else '#914b32' if low else '#78509e', True)
+            if aimed:
+                pygame.draw.circle(self.canvas, '#4c99a5', (PLAYER_X + 26, int(boss.target_y)), 26, 3)
+                pygame.draw.line(self.canvas, '#4c99a5', (PLAYER_X - 8, boss.target_y), (PLAYER_X + 60, boss.target_y), 3)
         bob = math.sin(r.time * 3) * 8
         cx, cy = int(boss.x + boss.w / 2), int(boss.y + boss.h / 2 + bob)
         weak = boss.phase == 'weak'
         storm = boss.kind == 'storm'
-        color = '#f27b43' if boss.enraged else '#9273d5' if storm else '#dcad4e'
+        color = '#f27b43' if boss.enraged else BOSS_SPECS[boss.kind]['color']
         if weak: color = '#69d6c0'
         radius = 100 + int(math.sin(r.time * 6) * 3)
         if boss.phase == 'defeated':
@@ -468,19 +544,39 @@ class App:
                 angle = r.time * .8 + n * math.tau / 3
                 pygame.draw.circle(self.canvas, color, (int(cx + math.cos(angle) * radius), int(cy + math.sin(angle) * radius)), 10)
         sprite = ('enemies/fly_' if storm else 'enemies/bee_') + ('a' if int(r.time * 12) % 2 else 'b')
-        image = self.assets.sprite(sprite, int(boss.w), int(boss.h))
-        self.canvas.blit(image, (boss.x, boss.y + bob))
+        if boss.kind == 'crystal':
+            for n in range(5):
+                angle = -r.time * .9 + n * math.tau / 5
+                sx, sy = cx + math.cos(angle) * 96, cy + math.sin(angle) * 86
+                self.canvas.blit(self.assets.sprite('tiles/gem_blue', 21, 26), (sx - 10, sy - 13))
+            # Stone fists and crown frame a luminous core with a readable weak point.
+            for side in (-1, 1):
+                hand = (cx + side * 65 - 25, cy + 12)
+                self.canvas.blit(self.assets.sprite('tiles/rock', 50, 49), hand)
+                pygame.draw.line(self.canvas, '#66b4c5', (hand[0] + 12, hand[1] + 13), (hand[0] + 32, hand[1] + 30), 3)
+            self.canvas.blit(self.assets.sprite('tiles/rock', 92, 48), (cx - 46, cy + 43))
+            self.canvas.blit(self.assets.sprite('tiles/gem_blue', 102, 118), (cx - 51, cy - 62))
+            for n in range(3):
+                self.canvas.blit(self.assets.sprite('tiles/gem_blue', 21, 30 + (n == 1) * 10), (cx - 35 + n * 25, cy - 91 - (n == 1) * 10))
+            pygame.draw.line(self.canvas, '#ffffff', (cx - 25, cy - 16), (cx - 9, cy - 10), 5)
+            pygame.draw.line(self.canvas, '#ffffff', (cx + 9, cy - 10), (cx + 25, cy - 16), 5)
+        else:
+            image = self.assets.sprite(sprite, int(boss.w), int(boss.h))
+            self.canvas.blit(image, (boss.x, boss.y + bob))
         if weak:
             pygame.draw.circle(self.canvas, '#ffffff', (cx, cy + 19), 23, 3)
             pygame.draw.line(self.canvas, '#ffffff', (cx - 30, cy + 19), (cx + 30, cy + 19), 2)
         label = self.tr('弱点开放 · 开火！', 'WEAK POINT · FIRE!') if weak else self.tr('狂暴装甲' if boss.enraged else '风暴装甲' if storm else '蜂巢装甲', 'ENRAGED ARMOR' if boss.enraged else 'STORM ARMOR' if storm else 'HIVE ARMOR')
+        if boss.kind == 'crystal' and not weak:
+            label = self.tr('晶岩装甲', 'CRYSTAL ARMOR')
         if boss.phase == 'defeated': label = self.tr('击破！', 'GUARDIAN DOWN!')
         self.text(label, (cx, boss.y + boss.h + 43), 19, GREEN if weak else INK, True)
 
     def boss_hud(self):
         boss = self.run.boss
         self.panel((375, 126, 570, 90), '#fff8df', 19)
-        name = self.tr('风暴守卫', 'STORM GUARDIAN') if boss.kind == 'storm' else self.tr('蜂巢守卫', 'HIVE GUARDIAN')
+        spec = BOSS_SPECS[boss.kind]
+        name = self.tr(spec['name'], spec['name_en'])
         if boss.enraged: name += self.tr(' · 狂暴', ' · ENRAGED')
         self.text(name, (395, 138), 22, '#944f32')
         self.text(f'{max(0, int(boss.hp))} / {int(boss.max_hp)}', (811, 141), 23, INK, latin=True)
@@ -533,13 +629,20 @@ class App:
                 label = self.tr(spec['name'], spec['name_en'])
                 self.panel((36 + i * 154, 588, 146, 25), '#edf6dd', 8, False)
                 self.text(f'{label} {level}', (43 + i * 154, 592), 14, GREEN)
-        stage = self.tr('BOSS 练习 · 不计入存档', 'BOSS PRACTICE · NO SAVED REWARDS') if self.practice else ['01 / CLOUD MEADOW', '02 / GOLDEN DUNES', '03 / LILAC GROVE'][biome]
-        self.text(stage, (38, 630), 22, '#ffffff')
-        goal = self.tr('跳低波，滑高波；弱点开放时全力射击', 'Jump low waves. Slide high waves. Fire at weak points.') if r.boss else self.tr('目标：500米 · 60金币 · 2冲刺 / 每项 +25', 'GOALS: 500m · 60 coins · 2 dashes / +25 each')
-        self.text(goal, (38, 671), 17, '#ffffff')
+        spec = r.route.current
+        stage = self.tr('练习 · 不计存档', 'PRACTICE · NO SAVED REWARDS') if self.practice else self.tr(spec['name'], spec['name_en'])
+        self.text(stage, (38, 623), 22, '#ffffff')
         if not r.boss and not self.practice:
             remaining = max(0, int(r.next_boss_distance - r.distance))
-            self.text(self.tr(f'距离守卫 {remaining}m · 已击破 {r.boss_defeated}', f'GUARDIAN IN {remaining}m · CLEARED {r.boss_defeated}'), (390, 633), 17, '#ffffff')
+            self.text(self.tr(f'守卫 {remaining}m · 已击破 {r.boss_defeated}', f'GUARDIAN IN {remaining}m · CLEARED {r.boss_defeated}'), (38, 651), 17, '#ffffff')
+        else:
+            self.text(self.tr('观察预警，离开危险高度', 'Read the cue; leave the danger lane'), (38, 651), 17, '#ffffff')
+        goal = self.tr('目标：500米 · 60金币 · 2冲刺 / 每项 +25', 'GOALS: 500m · 60 coins · 2 dashes / +25 each')
+        self.text(goal, (38, 680), 16, '#ffffff')
+        ready = r.skill_cooldown <= 0
+        self.button((602, 625, 122, 64), self.tr('技能 E', 'SKILL E') if ready else f'{r.skill_cooldown:.1f}s', 'skill', ready)
+        spec = HEROES[r.character]
+        fit_text(self, 'E · ' + self.tr(spec['skill'], spec['skill_en']), (186, 250), 18, 285, GREEN)
         for x, label, action, primary in [
             (734, self.tr('冲刺 J', 'DASH J'), 'dash', r.energy >= 100),
             (866, self.tr('滑铲 ↓', 'SLIDE ↓'), 'slide', False),
@@ -586,9 +689,9 @@ class App:
         self.buttons.clear()
         if self.scene == 'menu':
             self.menu()
-        elif self.scene in ('workshop', 'contracts', 'changelog'):
+        elif self.scene in ('workshop', 'contracts', 'changelog', 'maps', 'practice'):
             {'workshop': draw_workshop, 'contracts': draw_contracts,
-             'changelog': draw_changelog}[self.scene](self)
+             'changelog': draw_changelog, 'maps': draw_maps, 'practice': draw_practice}[self.scene](self)
         else:
             self.world()
             if self.scene in ('pause', 'over'):
@@ -606,12 +709,13 @@ class App:
         pygame.display.flip()
 
     def loop(self, frames=0, screenshot=None, scene='menu'):
-        if scene in ('workshop', 'contracts', 'changelog'):
+        if scene in ('workshop', 'contracts', 'changelog', 'maps', 'practice'):
             self.scene = scene
         elif scene != 'menu':
             self.start(practice=scene == 'boss')
             if scene in ('pause', 'over'):
                 self.scene = scene
+                self.run.set_paused(scene == 'pause')
             elif scene == 'perks':
                 self.run.perk_choices = ['wing', 'focus', 'capacitor']
                 self.scene = 'perks'

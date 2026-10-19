@@ -33,6 +33,8 @@ class Assets:
                 'dash': 'magic', 'bonus': 'magic', 'select': 'select',
                 'shot': 'throw', 'boss_hit': 'bump', 'boss_warning': 'magic',
                 'boss_attack': 'throw', 'boss_defeated': 'gem',
+                'skill': 'magic', 'route_changed': 'select', 'spring': 'jump-high',
+                'treasure': 'coin', 'glow': 'gem',
             }.items():
                 try:
                     sound = pygame.mixer.Sound(str(ASSETS / 'sounds' / ('sfx_' + filename + '.ogg')))
@@ -52,7 +54,7 @@ class Assets:
     def font(self, size, latin=False):
         return pygame.font.Font(None if latin else self.font_path, size)
 
-    @lru_cache(maxsize=3)
+    @lru_cache(maxsize=4)
     def landscape(self, theme, sky):
         image = self.sprite('backgrounds/background_color_' + theme, 800, 460, False).copy()
         image.fill(sky, special_flags=pygame.BLEND_RGB_MULT)

@@ -11,6 +11,9 @@ import math
 import random
 from typing import Dict, List, Optional, Tuple
 
+from .content import BOSS_SPECS, HEROES
+from .routes import Route
+
 
 WIDTH = 1280
 HEIGHT = 720
@@ -25,6 +28,8 @@ DOUBLE_JUMP_VELOCITY = -720.0
 FIXED_STEP = 1.0 / 120.0
 OBSTACLES = frozenset(("crate", "spike", "drone"))
 POWERUPS = frozenset(("magnet", "shield", "battery"))
+SPECIAL_KINDS = frozenset(("spring", "treasure", "glow", "air_coins"))
+SPECIALS = SPECIAL_KINDS
 PERKS = {
     "wing": {"name": "轻翼", "desc": "本局增加一次空中跳跃", "name_en": "Light Wings",
              "desc_en": "Gain one extra air jump this run", "max_level": 1},
@@ -94,6 +99,8 @@ class Boss:
     kind: str = "bee"
     index: int = 1
     attack_index: int = 0
+    burst: int = 1
+    target_y: float = GROUND - 36.0
 
     @property
     def rect(self) -> Rect:
@@ -119,8 +126,19 @@ class Run:
     """One run. Create a new instance to restart without carrying timers over."""
 
     def __init__(self, seed: Optional[int] = None, bosses: bool = True,
-                 upgrades: Optional[Dict[str, int]] = None, rewards: bool = True):
+                 upgrades: Optional[Dict[str, int]] = None, rewards: bool = True,
+                 character: str = "beige", first_boss: str = "bee"):
         self.rng = random.Random(seed)
+        self.route = Route(seed)
+        self._boss_rng = random.Random(seed)
+        self._boss_bag: List[str] = []
+        self._last_boss_kind: Optional[str] = None
+        self.first_boss = first_boss if isinstance(first_boss, str) and first_boss in BOSS_SPECS else "bee"
+        self.character = character if isinstance(character, str) and character in HEROES else "beige"
+        self.skill_cooldown = 0.0
+        self.skill_timer = 0.0
+        self.skill_count = 0
+        self.paused = False
         source = upgrades if isinstance(upgrades, dict) else {}
         self.upgrades = {key: min(3, max(0, source.get(key, 0)))
                          if type(source.get(key, 0)) is int else 0
@@ -167,6 +185,7 @@ class Run:
         self._spawn_timer = 2.65
         self._pattern_count = 0
         self._last_obstacle_world_x = -10000.0
+        self._last_spring_world_x = -10000.0
         self._fire_held = False
         self._fire_cooldown = 0.0
         self._boss_dash_hit = -1
@@ -220,7 +239,7 @@ class Run:
 
     def choose_perk(self, key: str) -> bool:
         """Apply one offered reward; an invalid or repeated choice does nothing."""
-        if not self.alive or not isinstance(key, str) or key not in self.perk_choices:
+        if not self.alive or self.paused or not isinstance(key, str) or key not in self.perk_choices:
             return False
         if key == "supply":
             self.coins += 40
@@ -243,6 +262,53 @@ class Run:
         self._jump_buffer = 0.0
         self.sliding = False
 
+    def set_paused(self, paused: bool) -> None:
+        """Optional model-level pause guard in addition to the UI scene pause."""
+        self.paused = bool(paused)
+        if self.paused:
+            self._release_inputs()
+            self._accumulator = 0.0
+
+    def skill(self) -> bool:
+        """Use the selected runner's ability once; rejected input changes nothing."""
+        if not self.alive or self.paused or self.perk_choices or self.skill_cooldown > 0.0:
+            return False
+        self.skill_cooldown = HEROES[self.character]["cooldown"]
+        self.skill_count += 1
+        if self.character == "beige":
+            self.skill_timer = 1.2
+            self.shield = True
+            self.invulnerable = max(self.invulnerable, 1.2)
+            px, py = PLAYER_X + PLAYER_WIDTH / 2, self.player_y - 36.0
+            for entity in self.entities:
+                if (entity.kind in OBSTACLES
+                        and math.hypot(entity.x + entity.w / 2 - px,
+                                       entity.y + entity.h / 2 - py) <= 260.0):
+                    entity.collected = True
+            self.projectiles[:] = [p for p in self.projectiles if p.kind == "shot"
+                                   or math.hypot(p.x + p.w / 2 - px, p.y + p.h / 2 - py) > 260.0]
+        elif self.character == "pink":
+            self.skill_timer = 0.8
+            self.player_vy = -900.0
+            self.jumps = 1
+            self.sliding = False
+            self._slide_held = False
+            self._jump_buffer = 0.0
+            self.magnet = max(self.magnet, 4.0)
+            self.invulnerable = max(self.invulnerable, 0.8)
+        else:
+            self.skill_timer = 0.5
+            self.invulnerable = max(self.invulnerable, 0.5)
+            self.energy = min(100.0, self.energy + 30.0)
+            for entity in self.entities:
+                if (entity.kind in OBSTACLES and entity.x + entity.w >= PLAYER_X
+                        and entity.x <= WIDTH):
+                    entity.collected = True
+            self.projectiles[:] = [p for p in self.projectiles if p.kind == "shot"]
+            self._damage_boss(35, pending=True)
+        self._emit("skill", pending=True)
+        return True
+
     def _offer_perks(self) -> None:
         available = [key for key in self.perks if self.perks[key] < PERKS[key]["max_level"]]
         self.perk_choices = (self.rng.sample(available, min(3, len(available)))
@@ -258,7 +324,7 @@ class Run:
 
     def jump(self) -> bool:
         """Jump or double jump. A late third press is buffered for landing."""
-        if not self.alive or self.perk_choices:
+        if not self.alive or self.paused or self.perk_choices:
             return False
         if self.jumps >= self.max_jumps:
             self._jump_buffer = 0.10
@@ -272,7 +338,7 @@ class Run:
 
     def set_slide(self, held: bool) -> None:
         """Hold to slide; pressing in the air accelerates the descent."""
-        if not self.alive or self.perk_choices:
+        if not self.alive or self.paused or self.perk_choices:
             return
         newly_pressed = bool(held) and not self._slide_held
         self._slide_held = bool(held)
@@ -283,7 +349,7 @@ class Run:
 
     def dash(self) -> bool:
         """Spend a full energy bar for a workshop-adjusted protected dash."""
-        if not self.alive or self.perk_choices or self.energy < 100.0 or self.is_dashing:
+        if not self.alive or self.paused or self.perk_choices or self.energy < 100.0 or self.is_dashing:
             return False
         self.energy = 0.0
         self.dash_timer = self.dash_duration
@@ -295,7 +361,7 @@ class Run:
 
     def set_fire(self, held: bool) -> None:
         """Hold to fire automatically when a boss is ready to fight."""
-        if not self.alive or self.perk_choices:
+        if not self.alive or self.paused or self.perk_choices:
             return
         self._fire_held = bool(held)
 
@@ -305,7 +371,7 @@ class Run:
 
     def _fire(self, pending: bool = False) -> bool:
         boss = self.boss
-        if (not self.alive or self.perk_choices or boss is None or boss.phase not in ("fight", "weak")
+        if (not self.alive or self.paused or self.perk_choices or boss is None or boss.phase not in ("fight", "weak")
                 or self._fire_cooldown > 0.0):
             return False
         x = float(PLAYER_X + PLAYER_WIDTH + 4)
@@ -323,7 +389,7 @@ class Run:
         self.events.clear()
         self.events.extend(self._pending_events)
         self._pending_events.clear()
-        if not self.alive or self.perk_choices or not math.isfinite(dt) or dt <= 0.0:
+        if not self.alive or self.paused or self.perk_choices or not math.isfinite(dt) or dt <= 0.0:
             return
         self._accumulator += min(float(dt), 0.1)
         while self._accumulator + 1e-12 >= FIXED_STEP and self.alive and not self.perk_choices:
@@ -345,6 +411,8 @@ class Run:
         self.dash_timer = _decay(self.dash_timer, dt)
         self.bonus_timer = _decay(self.bonus_timer, dt)
         self.magnet = _decay(self.magnet, dt)
+        self.skill_cooldown = _decay(self.skill_cooldown, dt)
+        self.skill_timer = _decay(self.skill_timer, dt)
         self.invulnerable = _decay(self.invulnerable, dt)
         self._bonus_cooldown = _decay(self._bonus_cooldown, dt)
         if ((old_dash > 0.0 and self.dash_timer <= 0.0)
@@ -360,7 +428,7 @@ class Run:
             self._next_bonus_combo = 30
 
         if self.jumps > 0 or self.player_y < GROUND:
-            self.player_vy += GRAVITY * dt
+            self.player_vy += self.route.current["gravity"] * dt
             self.player_y += self.player_vy * dt
             if self.player_y >= GROUND:
                 self.player_y = float(GROUND)
@@ -382,10 +450,18 @@ class Run:
             if not entered_boss:
                 self._update_boss(dt)
         else:
-            self._spawn_timer -= dt
-            if self._spawn_timer <= 0.0:
-                self._spawn_pattern()
-                self._spawn_timer += self.rng.uniform(2.45, 2.95)
+            changed = self.route.maybe_advance(
+                self.distance, safe=(not self.perk_choices and not self.is_dashing
+                                     and self.jumps == 0 and self.player_y >= GROUND))
+            if changed:
+                self._clear_obstacles(PLAYER_X + self.speed * 1.1)
+                self._spawn_timer = 2.65
+                self._emit("route_changed")
+            else:
+                self._spawn_timer -= dt
+                if self._spawn_timer <= 0.0:
+                    self._spawn_pattern()
+                    self._spawn_timer += self.rng.uniform(2.45, 2.95)
 
         if self.perk_choices:
             self.score = int(self.distance * 5.0) + self._score_points
@@ -408,6 +484,11 @@ class Run:
             elif entity.kind in POWERUPS:
                 if _overlap(self.player_rect, entity.rect):
                     self._collect_powerup(entity)
+            elif entity.kind in SPECIAL_KINDS and _overlap(self.player_rect, entity.rect):
+                self._collect_special(entity)
+
+        # A spring may have changed the player's shape after collecting it.
+        player_hit = _inset(self.player_rect, 9.0, 5.0)
 
         # Pickups are resolved first, allowing a shield obtained on the same
         # fixed step as a hazard to protect the player.
@@ -446,10 +527,10 @@ class Run:
                 or self.distance < self.next_boss_distance or self.is_dashing):
             return False
         index = self.boss_defeated + 1
-        kind = "bee" if index % 2 else "storm"
+        kind = self._next_boss_kind(index)
         hp = min(240, 160 + (index - 1) * 20)
         self.boss = Boss(hp=hp, max_hp=hp, kind=kind, index=index,
-                         attack="low" if kind == "bee" else "high")
+                         attack=BOSS_SPECS[kind]["attacks"][0], burst=BOSS_SPECS[kind]["burst"])
         self._clear_obstacles()
         self.projectiles.clear()
         self._fire_cooldown = 0.0
@@ -458,6 +539,32 @@ class Run:
                    self.boss.y + self.boss.h / 2)
         return True
 
+    def _next_boss_kind(self, index: int) -> str:
+        if index == 1:
+            kind = self.first_boss
+        else:
+            if not self._boss_bag:
+                self._boss_bag = list(BOSS_SPECS)
+                self._boss_rng.shuffle(self._boss_bag)
+            if self._boss_bag[-1] == self._last_boss_kind:
+                # Swap within the remaining bag instead of dropping a type;
+                # every full bag still contains all three guardians once.
+                for i, candidate in enumerate(self._boss_bag):
+                    if candidate != self._last_boss_kind:
+                        self._boss_bag[i], self._boss_bag[-1] = self._boss_bag[-1], self._boss_bag[i]
+                        break
+            kind = self._boss_bag.pop()
+        self._last_boss_kind = kind
+        return kind
+
+    def _begin_telegraph(self, boss: Boss, first: bool = False) -> None:
+        boss.phase = "fight"
+        boss.timer = 1.35 if first or not boss.enraged else 1.0
+        boss.telegraph = boss.timer
+        if boss.attack == "aim":
+            center = self.player_y - (16.0 if self.sliding else 36.0)
+            boss.target_y = min(GROUND - 30.0, max(GROUND - 180.0, center))
+
     def _update_boss(self, dt: float) -> None:
         boss = self.boss
         if boss is None:
@@ -465,9 +572,7 @@ class Run:
         boss.timer = _decay(boss.timer, dt)
         if boss.phase == "warning":
             if boss.timer == 0.0:
-                boss.phase = "fight"
-                boss.timer = 1.35
-                boss.telegraph = boss.timer
+                self._begin_telegraph(boss, first=True)
         elif boss.phase == "fight":
             boss.telegraph = boss.timer
             if boss.timer == 0.0:
@@ -478,13 +583,9 @@ class Run:
         elif boss.phase == "weak":
             if boss.timer == 0.0:
                 boss.attack_index += 1
-                if boss.kind == "storm":
-                    boss.attack = ("high", "low", "low", "high")[boss.attack_index % 4]
-                else:
-                    boss.attack = "high" if boss.attack == "low" else "low"
-                boss.phase = "fight"
-                boss.timer = 1.0 if boss.enraged else 1.35
-                boss.telegraph = boss.timer
+                pattern = BOSS_SPECS[boss.kind]["attacks"]
+                boss.attack = pattern[boss.attack_index % len(pattern)]
+                self._begin_telegraph(boss)
         elif boss.phase == "defeated" and boss.timer == 0.0:
             self.boss = None
             self.projectiles.clear()
@@ -499,7 +600,10 @@ class Run:
         if boss is None:
             return
         speed = 560.0 if boss.enraged else 500.0
-        if boss.attack == "low":
+        if boss.attack == "aim":
+            wave = Projectile("boss_orb", boss.x, boss.target_y - 27.0,
+                              54.0, 54.0, -speed, 0.0)
+        elif boss.attack == "low":
             wave = Projectile("boss_low", boss.x, GROUND - 44.0,
                               82.0, 44.0, -speed, 0.0)
         else:
@@ -507,6 +611,9 @@ class Run:
             wave = Projectile("boss_high", boss.x, GROUND - 112.0,
                               92.0, 62.0, -speed, 0.0)
         self.projectiles.append(wave)
+        if boss.burst > 1:
+            self.projectiles.append(Projectile(wave.kind, wave.x + 130.0, wave.y,
+                                               wave.w, wave.h, wave.vx, wave.vy))
         self._emit("boss_attack", wave.x + wave.w / 2, wave.y + wave.h / 2)
 
     def _dash_boss(self, pending: bool = False) -> None:
@@ -633,6 +740,27 @@ class Run:
             self.energy = min(100.0, self.energy + 35.0)
         self._emit("power", entity.x + entity.w / 2, entity.y + entity.h / 2)
 
+    def _collect_special(self, entity: Entity) -> None:
+        if entity.kind == "spring":
+            if self.jumps != 0 or self.player_y < GROUND:
+                return
+            self.player_vy = -950.0
+            self.jumps = 1
+            self.sliding = False
+            self._slide_held = False
+            self._jump_buffer = 0.0
+        elif entity.kind == "treasure":
+            self.coins += 15
+            self.energy = min(100.0, self.energy + 15.0)
+            self._score_points += 150
+        elif entity.kind == "glow":
+            self.energy = min(100.0, self.energy + 20.0)
+            self.magnet = max(self.magnet, 3.0)
+        else:
+            return
+        entity.collected = True
+        self._emit(entity.kind, entity.x + entity.w / 2, entity.y + entity.h / 2)
+
     def _clear_obstacles(self, before_x: Optional[float] = None) -> None:
         # Mark rather than deleting: this is safe during a coin collection loop.
         for entity in self.entities:
@@ -659,7 +787,7 @@ class Run:
         if self.time < 15.0:
             kind = ("crate", "drone", "crate", "spike", "drone", "crate")[index % 6]
         else:
-            kind = self.rng.choice(("crate", "crate", "spike", "drone", "drone"))
+            kind = self.rng.choice(self.route.obstacle_pool)
 
         # Even after a bonus interrupted spawning, no hazard can appear too
         # close to its predecessor. Extra speed margin covers acceleration
@@ -667,6 +795,10 @@ class Run:
         world_px = self.distance * 25.0
         minimum_gap = (self.speed + 15.0) * 2.15 + 90.0
         base = max(base, self._last_obstacle_world_x + minimum_gap - world_px)
+        # A spring may survive a map transition into lower gravity. Reserve
+        # its full 1.16 s flight plus recovery before the next required action.
+        spring_gap = (self.speed + 15.0) * 1.6 + 70.0
+        base = max(base, self._last_spring_world_x + spring_gap - world_px)
         self._last_obstacle_world_x = world_px + base
         if kind == "drone":
             self.entities.append(Entity(kind, base, GROUND - 104.0, 88.0, 52.0))
@@ -680,7 +812,8 @@ class Run:
             for i in range(9):
                 fraction = i / 8.0
                 self._coin(base + width / 2.0 + (fraction * 2.0 - 1.0) * half_span,
-                           GROUND - 65.0 - math.sin(fraction * math.pi) * 135.0)
+                           GROUND - 65.0 - math.sin(fraction * math.pi) * 135.0
+                           - self.route.current["coin_height_bonus"])
 
         # Predictable early help, then a rotating reward every third segment.
         if index % 3 == 1:
@@ -689,3 +822,18 @@ class Run:
         # A short low trail connects segments, keeping the combo achievable.
         for offset in (260.0, 310.0, 360.0):
             self._coin(base + offset, GROUND - 29.0)
+        special = self.route.special_kind(index)
+        x = base + 450.0
+        if special == "spring":
+            self.entities.append(Entity("spring", x, GROUND - 16.0, 60.0, 16.0))
+            self._last_spring_world_x = world_px + x
+            for i in range(5):
+                self._coin(x + 60.0 + i * 50.0,
+                           GROUND - 120.0 - math.sin(i * math.pi / 4) * 90.0)
+        elif special == "treasure":
+            self.entities.append(Entity("treasure", x, GROUND - 130.0, 38.0, 32.0))
+        elif special == "glow":
+            self.entities.append(Entity("glow", x, GROUND - 60.0, 36.0, 36.0))
+        elif special == "air_coins":
+            for i in range(5):
+                self._coin(x + i * 42.0, GROUND - 240.0 - math.sin(i * math.pi / 4) * 35.0)

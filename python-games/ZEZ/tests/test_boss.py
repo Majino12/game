@@ -3,17 +3,18 @@
 import unittest
 
 from runner.model import (
-    Entity, FIXED_STEP, GROUND, OBSTACLES, PLAYER_WIDTH, PLAYER_X,
+    BOSS_SPECS, Entity, FIXED_STEP, GROUND, OBSTACLES, PLAYER_WIDTH, PLAYER_X,
     Projectile, Run,
 )
 
 
-def isolated_run(seed=17, bosses=True):
+def isolated_run(seed=17, bosses=True, first_boss="bee"):
     # Combat/practice tests continue immediately after the victory animation.
     # Reward selection and its pause are covered separately in test_perks.
-    run = Run(seed=seed, bosses=bosses, rewards=False)
+    run = Run(seed=seed, bosses=bosses, rewards=False, first_boss=first_boss)
     run.entities.clear()
     run._spawn_timer = 100000.0
+    run.route.next_distance = float("inf")
     return run
 
 
@@ -39,8 +40,8 @@ def until(run, condition, timeout=10, control=None):
     return events
 
 
-def encounter(active=False):
-    run = isolated_run()
+def encounter(active=False, kind="bee"):
+    run = isolated_run(first_boss=kind)
     run.next_boss_distance = 0
     run.update(FIXED_STEP)
     if active:
@@ -50,12 +51,17 @@ def encounter(active=False):
 
 def dodge_waves(run):
     upcoming = [p for p in run.projectiles
-                if p.kind in ("boss_low", "boss_high") and p.x + p.w >= PLAYER_X]
+                if p.kind in ("boss_low", "boss_high", "boss_orb") and p.x + p.w >= PLAYER_X]
     wave = min(upcoming, key=lambda p: p.x, default=None)
     gap = wave.x - PLAYER_X - PLAYER_WIDTH if wave else float("inf")
-    run.set_slide(bool(wave and wave.kind == "boss_high" and gap < abs(wave.vx) * 0.6))
-    if wave and wave.kind == "boss_low" and gap < abs(wave.vx) * 0.3 and run.jumps == 0:
-        run.jump()
+    high = wave and (wave.kind == "boss_high" or (wave.kind == "boss_orb" and wave.y + wave.h < GROUND - 30))
+    run.set_slide(bool(high and gap < abs(wave.vx) * 0.6))
+    if wave and not high and gap < abs(wave.vx) * 0.3:
+        if run.jumps == 0:
+            run.jump()
+        elif (run.boss.burst > 1 and run.jumps == 1 and run.player_vy > 0
+              and run.player_y > GROUND - 140):
+            run.jump()
 
 
 class BossEntranceTests(unittest.TestCase):
@@ -289,42 +295,45 @@ class BossVictoryTests(unittest.TestCase):
         self.assertEqual(run.boss.phase, "warning")
         self.assertEqual(run.boss.hp, run.boss.max_hp)
         self.assertEqual(run.boss.index, 2)
-        self.assertEqual(run.boss.kind, "storm")
+        self.assertIn(run.boss.kind, ("storm", "crystal"))
         self.assertEqual(run.boss.max_hp, 180)
-        self.assertEqual(run.boss.attack, "high")
+        self.assertEqual(run.boss.attack, BOSS_SPECS[run.boss.kind]["attacks"][0])
         self.assertEqual(run.boss_defeated, 1)
         self.assertGreaterEqual(run.distance, next_distance)
 
     def test_encounter_and_held_fire_are_consistent_at_30_60_and_144_fps(self):
-        results = []
-        for fps in (30, 60, 144):
-            run = isolated_run()
-            run.next_boss_distance = 0
-            run.invulnerable = 100
-            run.set_fire(True)
-            events = advance(run, 8, fps)
-            results.append((run, events))
-        reference, reference_events = results[0]
-        for actual, events in results[1:]:
-            for field in ("time", "distance", "speed", "player_y", "player_vy"):
-                self.assertAlmostEqual(getattr(actual, field), getattr(reference, field), places=9, msg=field)
-            for field in ("score", "coins", "boss_defeated", "alive"):
-                self.assertEqual(getattr(actual, field), getattr(reference, field), field)
-            self.assertEqual(actual.boss, reference.boss)
-            self.assertEqual(actual.projectiles, reference.projectiles)
-            self.assertEqual(events, reference_events)
+        for kind in BOSS_SPECS:
+            with self.subTest(kind=kind):
+                results = []
+                for fps in (30, 60, 144):
+                    run = isolated_run(first_boss=kind)
+                    run.next_boss_distance = 0
+                    run.invulnerable = 100
+                    run.set_fire(True)
+                    events = advance(run, 8, fps)
+                    results.append((run, events))
+                reference, reference_events = results[0]
+                for actual, events in results[1:]:
+                    for field in ("time", "distance", "speed", "player_y", "player_vy"):
+                        self.assertAlmostEqual(getattr(actual, field), getattr(reference, field), places=9, msg=field)
+                    for field in ("score", "coins", "boss_defeated", "alive"):
+                        self.assertEqual(getattr(actual, field), getattr(reference, field), field)
+                    self.assertEqual(actual.boss, reference.boss)
+                    self.assertEqual(actual.projectiles, reference.projectiles)
+                    self.assertEqual(events, reference_events)
 
 
 class BossVarietyTests(unittest.TestCase):
-    def test_successive_bosses_alternate_and_health_growth_is_capped(self):
+    def test_successive_bosses_use_a_nonrepeating_seeded_bag_and_capped_health(self):
         run = isolated_run()
-        expected = [("bee", 160), ("storm", 180), ("bee", 200), ("storm", 220),
-                    ("bee", 240), ("storm", 240), ("bee", 240)]
-        for index, (kind, hp) in enumerate(expected, 1):
+        seen = []
+        for index in range(1, 11):
             with self.subTest(index=index):
                 run.distance = run.next_boss_distance
                 run.update(FIXED_STEP)
-                self.assertEqual((run.boss.kind, run.boss.index, run.boss.hp), (kind, index, hp))
+                hp = min(240, 160 + (index - 1) * 20)
+                seen.append(run.boss.kind)
+                self.assertEqual((run.boss.index, run.boss.hp), (index, hp))
                 self.assertEqual(run.boss.max_hp, hp)
                 advance(run, 2)
                 run.boss.hp = 2
@@ -336,12 +345,15 @@ class BossVarietyTests(unittest.TestCase):
                 self.assertEqual(run.perk_choices, [])
                 self.assertEqual(run.boss_defeated, index)
                 self.assertEqual(run.coins, index * 50)
+        self.assertEqual(seen[0], "bee")
+        self.assertTrue(all(a != b for a, b in zip(seen, seen[1:])))
+        for start in (1, 4, 7):
+            self.assertEqual(set(seen[start:start + 3]), set(BOSS_SPECS))
+        same_seed = Run(seed=17)
+        self.assertEqual(seen, [same_seed._next_boss_kind(i) for i in range(1, 11)])
 
     def test_storm_has_readable_sequence_and_keeps_recovery_time(self):
-        run = isolated_run()
-        run.boss_defeated = 1
-        run.next_boss_distance = 0
-        run.update(FIXED_STEP)
+        run = encounter(kind="storm")
         self.assertEqual(run.boss.kind, "storm")
         advance(run, 2)
         self.assertEqual(run.boss.attack, "high")
@@ -356,11 +368,61 @@ class BossVarietyTests(unittest.TestCase):
             run.update(FIXED_STEP)
             if any(event[0] == "boss_attack" for event in run.events):
                 attacks.append((run.boss.attack, run.time))
+                waves = [p for p in run.projectiles if p.kind.startswith("boss_")]
+                self.assertEqual(len(waves), 2)
+                self.assertEqual(waves[0].kind, waves[1].kind)
+                self.assertAlmostEqual(waves[1].x - waves[0].x, 130)
             self.assertTrue(run.alive)
             self.assertFalse(run.shield)
         self.assertEqual([kind for kind, _ in attacks[:5]], ["high", "low", "low", "high", "high"])
         self.assertTrue(all(warning >= 1 for warning in warnings))
         self.assertTrue(all(later[1] - earlier[1] >= 3.5 for earlier, later in zip(attacks, attacks[1:])))
+
+    def test_all_guardians_are_dodgeable_without_defenses_when_enraged(self):
+        for kind in BOSS_SPECS:
+            with self.subTest(kind=kind):
+                run = encounter(active=True, kind=kind)
+                run.boss.enraged = True
+                for _ in range(25 * 120):
+                    dodge_waves(run)
+                    run.update(FIXED_STEP)
+                    self.assertTrue(run.alive, (kind, run.time, run.boss.attack))
+                    self.assertFalse(run.shield)
+                self.assertEqual(run.invulnerable, 0)
+
+    def test_crystal_locks_height_at_warning_and_orb_keeps_its_lane(self):
+        run = encounter(active=True, kind="crystal")
+        self.assertEqual(run.boss.attack, "aim")
+        self.assertEqual(run.boss.target_y, GROUND - 36)
+        locked = run.boss.target_y
+        run.jump()
+        advance(run, 0.4)
+        self.assertEqual(run.boss.target_y, locked)
+        until(run, lambda: run.boss.phase == "weak")
+        orb = next(p for p in run.projectiles if p.kind == "boss_orb")
+        self.assertEqual((orb.w, orb.h, orb.vx, orb.vy), (54, 54, -500, 0))
+        self.assertEqual(orb.y + orb.h / 2, locked)
+        advance(run, 0.2)
+        self.assertEqual(orb.y + orb.h / 2, locked)
+        # A high airborne position is clamped to a readable, bounded lane.
+        run.player_y = GROUND - 300
+        run.boss.attack = "aim"
+        run._begin_telegraph(run.boss)
+        self.assertEqual(run.boss.target_y, GROUND - 180)
+        run.player_y = GROUND
+        run.sliding = True
+        run._begin_telegraph(run.boss)
+        self.assertEqual(run.boss.target_y, GROUND - 30)
+
+    def test_practice_override_and_unknown_first_boss(self):
+        for chosen in ("bee", "storm", "crystal", "unknown", None):
+            with self.subTest(chosen=chosen):
+                run = isolated_run(first_boss=chosen)
+                run.next_boss_distance = 0
+                run.update(FIXED_STEP)
+                self.assertEqual(run.boss.kind, chosen if chosen in BOSS_SPECS else "bee")
+                self.assertEqual(run.boss.index, 1)
+                self.assertEqual(run.boss.max_hp, 160)
 
 
 if __name__ == "__main__":

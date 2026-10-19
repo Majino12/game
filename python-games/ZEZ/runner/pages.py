@@ -2,6 +2,8 @@
 import pygame
 
 from .model import PERKS
+from .content import HEROES, BOSS_SPECS
+from .routes import MAPS
 from .storage import contract_status, upgrade_price
 
 INK = '#173c40'
@@ -137,18 +139,60 @@ def draw_perks(app):
     app.button((457, 615, 366, 44), app.tr('结算并返回主页 · Esc', 'BANK & GO HOME · Esc'), 'menu', small=True)
 
 
+def draw_maps(app):
+    page_header(app, app.tr('云端地图图鉴', 'ATLAS OF THE CLOUDS'),
+                app.tr('云野出发，之后随机轮换。每约 500 米在安全时切换，连续地图不重复。',
+                       'Start in the meadow. Maps shuffle about every 500m, once safe, without immediate repeats.'))
+    for i, (key, spec) in enumerate(MAPS.items()):
+        x, y = 72 + (i % 2) * 580, 169 + (i // 2) * 216
+        app.panel((x, y, 556, 198), spec['palette']['sky'], 22, False)
+        sprite = {'meadow': 'spring_out', 'dunes': 'gem_yellow',
+                  'grove': 'gem_green', 'ruins': 'gem_blue'}[key]
+        app.canvas.blit(app.assets.sprite('tiles/' + sprite, 63, 67), (x + 30, y + 34))
+        app.text(app.tr(spec['name'], spec['name_en']), (x + 118, y + 28), 27, INK)
+        wrapped(app, app.tr(spec['hint'], spec['hint_en']), (x + 118, y + 74, 403, 75), 19)
+        detail = {
+            'meadow': ('弹簧可跳过 · 箱子更多', 'Optional springs · More crates'),
+            'dunes': ('宝箱 +15金币 / +15能量 / +150分', 'Chest: +15 coins / +15 energy / +150 score'),
+            'grove': ('荧光球 +20能量 / 3秒磁铁', 'Glow: +20 energy / 3s magnet'),
+            'ruins': ('轻重力 · 高空金币路线', 'Lower gravity · Higher coin trails'),
+        }[key]
+        fit_text(app, app.tr(*detail), (x + 278, y + 166), 18, 514, spec['palette']['accent'])
+    fit_text(app, app.tr('Boss、冲刺和腾空期间延后切图；到达新地图后重新计算 500 米。',
+                        'Boss fights, dashes and airborne moves delay transitions. The next interval starts after arrival.'),
+             (640, 644), 19, 1136, MUTED)
+
+
+def draw_practice(app):
+    page_header(app, app.tr('守卫试炼场', 'GUARDIAN TRAINING'),
+                app.tr('选择对手，练习读招。使用当前角色技能和基础装备，不消耗金币、不记录成绩。',
+                       'Choose a guardian. Use your runner skill and base gear, with no cost or saved rewards.'))
+    for i, (kind, spec) in enumerate(BOSS_SPECS.items()):
+        x = 72 + i * 384
+        app.panel((x, 170, 360, 420), ['#fff4cf', '#eee7f6', '#e3f3f1'][i], 24, False)
+        sprite = {'bee': 'enemies/bee_a', 'storm': 'enemies/fly_a', 'crystal': 'tiles/gem_blue'}[kind]
+        pygame.draw.circle(app.canvas, '#fffdf1', (x + 180, 255), 65)
+        app.canvas.blit(app.assets.sprite(sprite, 96, 94), (x + 132, 207))
+        fit_text(app, app.tr(spec['name'], spec['name_en']), (x + 180, 348), 29, 324)
+        wrapped(app, app.tr(spec['desc'], spec['desc_en']), (x + 25, 393, 310, 105), 20)
+        app.button((x + 30, 524, 300, 44), app.tr('开始试炼 →', 'START TRAINING →'), 'practice:' + kind, True, True)
+    hero = HEROES[app.data.selected]
+    fit_text(app, app.tr('当前伙伴：', 'RUNNER: ') + app.tr(hero['name'], hero['name_en']) + ' · E / ' + app.tr(hero['skill'], hero['skill_en']),
+             (640, 644), 22, 1136, GREEN)
+
+
 def draw_changelog(app):
-    page_header(app, app.tr('更新日志', 'WHAT’S NEW'), 'v1.1.0  ·  2026-10-19')
+    page_header(app, app.tr('更新日志', 'WHAT’S NEW'), 'v1.2.0  ·  2026-10-19')
     rows = [
-        ('01', '每次冒险，不同搭配', 'A NEW BUILD EVERY RUN',
-         '击破 Boss 后选择天赋：三段跳、弱点增伤、充能、连射、磁力与连击宽限。',
-         'Pick a perk after each boss: a third jump, weak-point damage, charge, rapid fire, magnet range or combo grace.'),
-        ('02', '金币有了新用途', 'MAKE YOUR COINS COUNT',
-         '工坊提供三项永久升级；远征合约跨局累计里程、金币和击破数，完成一阶自动领奖。',
-         'Buy three permanent workshop upgrades. Career contracts reward cumulative distance, coins and guardian defeats.'),
-        ('03', '遇见风暴守卫', 'MEET THE STORM GUARDIAN',
-         '后续守卫交替登场，攻击节奏不同、血量逐步提高。利用天赋组合应对更远的挑战。',
-         'Alternating guardians bring new attack sequences and rising health. Build your perks to face the next challenge.'),
+        ('01', '不同伙伴，不同绝招', 'THREE RUNNERS. THREE POWERS.',
+         '按 E 释放专属技能：奶油守护脉冲、莓莓流星跃、星云星环爆发。技能开局就绪，冷却暂停时冻结。',
+         'Press E for Guardian Pulse, Meteor Leap or Nova Ring. Ready at the start, with cooldowns frozen during pauses.'),
+        ('02', '四张地图，随机旅程', 'FOUR MAPS. A SHUFFLED JOURNEY.',
+         '云野弹簧、沙丘宝箱、林地荧光球与遗迹轻重力。安全时随机切换地图，每局路线更有变化。',
+         'Spring pads, desert chests, forest glow orbs and low-gravity ruins. Maps shuffle when the route is safe to change.'),
+        ('03', '新的守卫，新的节奏', 'NEW GUARDIANS. NEW RHYTHMS.',
+         '风暴守卫发射连续双波，晶岩巨像锁定高度攻击。三个 Boss 轮换登场，也可在试炼场单独练习。',
+         'Dodge the Storm Guardian’s double waves and Crystal Colossus’s locked-height orbs. Train against each guardian separately.'),
     ]
     for i, (number, title, title_en, body, body_en) in enumerate(rows):
         y = 170 + i * 142
@@ -156,6 +200,6 @@ def draw_changelog(app):
         app.text(number, (100, y + 31), 44, GREEN, latin=True)
         app.text(app.tr(title, title_en), (190, y + 14), 26, INK)
         wrapped(app, app.tr(body, body_en), (190, y + 56, 975, 68), 20)
-    fit_text(app, app.tr('v1.0：跑酷、连击狂欢、角色外观与 Boss 练习 · 完整记录见 CHANGELOG.md',
-                        'v1.0: running, coin rush, runners & boss practice. Full history: CHANGELOG.md'),
+    fit_text(app, app.tr('保留 v1.1 工坊、合约与天赋系统 · 完整版本记录见 CHANGELOG.md',
+                        'Includes the v1.1 workshop, contracts and perks. Full version history: CHANGELOG.md'),
              (640, 643), 19, 1120, MUTED)
