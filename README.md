@@ -28,7 +28,17 @@ python3 -m venv .venv
 .venv/bin/python main.py
 ```
 
-Windows 的手动安装命令、存档位置和测试方式见 [完整说明](python-games/ZEZ/README.md)。资源路径与当前工作目录无关，也可从仓库根目录运行 `python python-games/ZEZ/main.py`。
+Windows 的手动安装命令、存档位置和测试方式见 [完整说明](python-games/ZEZ/README.md)。资源路径与当前工作目录无关；从仓库根目录启动时，也应使用已安装依赖的虚拟环境解释器：
+
+```bash
+# macOS / Linux
+python-games/ZEZ/.venv/bin/python python-games/ZEZ/main.py
+```
+
+```bat
+:: Windows 命令提示符
+python-games\ZEZ\.venv\Scripts\python.exe python-games\ZEZ\main.py
+```
 
 ## 这次跑什么
 
@@ -55,10 +65,11 @@ Windows 的手动安装命令、存档位置和测试方式见 [完整说明](py
 | Boss 战按住连续射击 | `K` / `X` |
 | 天赋页选择第 1 / 2 / 3 项 | `1` / `2` / `3`，或鼠标点击 |
 | 暂停 / 继续 | `Esc` / `P` |
-| 工坊、合约、地图、练习选择、更新说明返回菜单 | `Esc` |
+| 工坊、合约、地图、练习选择、更新说明返回菜单 | `Esc` / `P` |
+| 天赋页结算当前冒险并返回菜单 | `Esc` / `P` |
 | 声音 / 中英文 / 全屏 | `M` / `L` / `F11` |
 
-![蜂巢守卫 Boss 战](python-games/ZEZ/docs/screenshots/boss.png)
+![疾风蜂王 Boss 战](python-games/ZEZ/docs/screenshots/boss.png)
 
 | 升级工坊 | 战后天赋 | 风暴守卫 |
 | --- | --- | --- |
