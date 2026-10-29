@@ -1,5 +1,7 @@
 # ZEZ · 云端冲刺 / Cloud Dash
 
+[仓库首页](../../README.md) · [安装与启动](#安装与启动) · [操作](#操作) · [存档](#存档) · [开发与测试](#开发与测试) · [English](#english)
+
 跳过木箱，滑过飞行障碍，追着金币跑向下一片天空；守卫出现时，一边躲避攻击一边射击，击破后继续冒险。游戏围绕二段跳、滑铲、连击奖励、主动冲刺与 Boss 战展开，使用 Python + Pygame CE，支持中英文界面。
 
 当前版本：**1.2.0（2026-10-19）**。新增角色主动技能、四张不同机制地图与三类守卫；保留本局天赋、永久工坊升级和累计合约。完整变化见[更新日志](CHANGELOG.md)，同类机制研究与设计取舍见[设计说明](docs/design-notes.md)。菜单也可查看游戏内更新说明。
@@ -20,7 +22,7 @@
 
 两个脚本都会在游戏目录创建独立的 `.venv`。首次安装依赖需要联网，安装成功后启动时只检查本地依赖，可以离线游玩。脚本不会自动安装 Python。
 
-手动安装与运行，在本目录执行：
+手动安装与运行，先进入仓库内的 `python-games/ZEZ` 目录，再执行：
 
 ```bash
 # macOS / Linux
@@ -36,10 +38,18 @@ py -3 -m venv .venv
 .venv\Scripts\python.exe main.py
 ```
 
+后文的 `python ...` 示例默认已激活此虚拟环境：macOS / Linux 运行 `source .venv/bin/activate`，Windows 命令提示符运行 `.venv\Scripts\activate.bat`。也可将 `python` 替换为上面对应的虚拟环境解释器路径。
+
 图片和音频按源码所在位置加载，支持从任意工作目录通过 `main.py` 的绝对路径启动。例如从仓库根目录运行：
 
 ```bash
+# macOS / Linux
 python-games/ZEZ/.venv/bin/python python-games/ZEZ/main.py
+```
+
+```bat
+:: Windows 命令提示符
+python-games\ZEZ\.venv\Scripts\python.exe python-games\ZEZ\main.py
 ```
 
 默认窗口为 1152 × 648，可调整大小；画面按 1280 × 720 等比例缩放。没有可用中文字体时自动使用英文，安装系统中文字体后可切换中文。无音频设备时仍可游玩。
@@ -57,7 +67,7 @@ python-games/ZEZ/.venv/bin/python python-games/ZEZ/main.py
 | `Esc` / `P` | 游戏中暂停或继续；结算界面返回菜单 |
 | `Enter` | 暂停时继续 |
 | `1` / `2` / `3` | 天赋页选择对应卡片，也可鼠标点击 |
-| `Esc` | 工坊、合约、地图、练习选择、更新说明返回菜单；天赋页结算当前冒险并返回菜单 |
+| `Esc` / `P` | 工坊、合约、地图、练习选择、更新说明返回菜单；天赋页结算当前冒险并返回菜单 |
 | `M` | 开关声音 |
 | `L` | 中英文切换，需要系统中文字体 |
 | `F11` | 切换全屏 |
@@ -138,7 +148,7 @@ python main.py --scene practice
 python main.py --scene boss --boss-kind crystal
 ```
 
-![蜂巢守卫与能量波](docs/screenshots/boss.png)
+![疾风蜂王与能量波](docs/screenshots/boss.png)
 
 ![风暴守卫](docs/screenshots/storm.png)
 
@@ -276,6 +286,6 @@ The Gale Queen first appears after 350 metres. Later guardians shuffle between t
 
 After a normal-run victory, choose one of up to three offered perks with `1/2/3` or the mouse. Six perk types improve jumps, weak-point damage, fire rate, energy, coin attraction or combo timing; they reset when the run ends. Workshop upgrades are permanent, with three levels costing 80, 160 and 280 coins each. Career contracts award coins repeatedly for cumulative distance, run coins and boss victories. Practice lets you select any guardian, retains character skills, disables Workshop bonuses and earns no career progress or persistent rewards. Use `--scene practice` for the selector or `--scene boss --boss-kind crystal` to practice directly.
 
-Double-click `play.command` on macOS or `play.bat` on Windows. The launcher creates a local virtual environment and installs dependencies on the first launch; subsequent launches work offline. Manual commands and save locations are listed above. `Space/W/↑`: jump; `S/↓/Ctrl`: slide or fast fall; `J/Shift`: dash; `E`: character skill; hold `K/X`: fire during a boss fight; `Esc/P`: pause; `M`: sound; `L`: language; `F11`: fullscreen.
+Double-click `play.command` on macOS or `play.bat` on Windows. The launcher creates a local virtual environment and installs dependencies on the first launch; subsequent launches work offline. Manual commands and save locations are listed above. Later `python ...` examples assume the virtual environment is activated; alternatively, use `.venv/bin/python` on macOS/Linux or `.venv\Scripts\python.exe` in Windows Command Prompt. `Space/W/↑`: jump; `S/↓/Ctrl`: slide or fast fall; `J/Shift`: dash; `E`: character skill; hold `K/X`: fire during a boss fight; `Esc/P`: pause or resume during play, or settle the current adventure and return to the menu from the perk page; `M`: sound; `L`: language; `F11`: fullscreen.
 
 Saves are stored in the user's application-data directory, independently of the working directory. Set `ZEZ_SAVE_DIR` to override it. Version 1.2 keeps save format v2 and preserves existing upgrades and career progress. When importing v1 saves, records, wallet, characters and settings are preserved, while upgrade and career fields start at zero without reconstructing past progress. The 103 bundled Kenney art/audio files remain unchanged and CC0; music is synthesized by the game. CI covers Python 3.9/3.12 on Linux and all eleven scenes, all three guardians and character parameters; Windows launcher support has not been verified on a Windows machine during this update.
